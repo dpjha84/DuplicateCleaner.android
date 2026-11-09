@@ -71,8 +71,10 @@ class DuplicateScanner {
         val rootPath = root.absolutePath
         root.walkTopDown()
             .onEnter { dir ->
-                // Skip hidden folders and app-private data under /Android.
-                !dir.name.startsWith(".") && dir.absolutePath != "$rootPath/Android"
+                // Skip hidden folders, app-private data under /Android, and our own trash.
+                !dir.name.startsWith(".") &&
+                    dir.absolutePath != "$rootPath/Android" &&
+                    dir.absolutePath != "$rootPath/${Trash.DIR_NAME}"
             }
             .forEach { f ->
                 if (out.size % 500 == 0) kotlin.coroutines.coroutineContext.ensureActive()

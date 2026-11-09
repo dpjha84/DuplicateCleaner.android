@@ -71,7 +71,10 @@ class MainActivity : ComponentActivity() {
                         },
                         onCancel = viewModel::cancelScan,
                         onToggle = viewModel::toggle,
-                        onDelete = viewModel::deleteSelected,
+                        onRule = viewModel::applyRule,
+                        onTrash = viewModel::trashSelected,
+                        onRestore = viewModel::restoreTrash,
+                        onEmptyTrash = viewModel::emptyTrash,
                         onMessageShown = viewModel::messageShown
                     )
                 }
@@ -81,6 +84,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        viewModel.refreshTrash()
         if (scanAfterSettings) {
             scanAfterSettings = false
             if (hasAllFilesAccess()) viewModel.startScan()

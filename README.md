@@ -5,7 +5,21 @@ documents, downloads, archives…) and lets you delete the extras. Detection is 
 content (size → 64 KB hash → full SHA-256), so renamed copies are caught. One copy per
 group is always kept; the oldest is kept by default.
 
-Skipped: files under 1 KB, hidden files/folders (names starting with `.`), and `/Android`.
+Skipped: files under 1 KB, hidden files/folders (names starting with `.`), `/Android`, and the app's own trash.
+
+## Previewing before you decide
+Tap any file in a group to open a full-screen preview: pinch-zoom for images, tap-to-play video,
+play/pause for audio, page-by-page PDFs, and the start of text files. Other types (Word, Excel…)
+show details and an "Open in another app" button. Previous/Next copy flips through the group, and
+you can mark a copy for trash or keep it right from the preview.
+
+## Choosing what to remove
+- Everything except one copy per group is pre-selected. Pick which copy is kept: **Oldest**, **Newest**,
+  **Short path**, or **Keep here** on a folder from the "Where the duplicates are" summary.
+  You can still tick or untick individual files.
+- Files are **moved to a trash folder** (`DuplicateCleaner Trash` on internal storage, keeps the
+  original folder structure, hidden from gallery apps via `.nomedia`), not deleted.
+  **Restore all** puts them back; **Empty trash** deletes them permanently and frees the space.
 
 ## Permissions
 - Android 11+: **All files access** (`MANAGE_EXTERNAL_STORAGE`), granted by the user in Settings.
