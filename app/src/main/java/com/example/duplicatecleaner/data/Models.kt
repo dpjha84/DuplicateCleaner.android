@@ -20,6 +20,8 @@ data class DuplicateGroup(
 
 data class ScanProgress(
     val message: String = "Starting…",
-    val done: Int = 0,
-    val total: Int = 0
+    val done: Long = 0,
+    val total: Long = 0,
+    /** True when done/total are bytes (shown as sizes), false when they are file counts. */
+    val isBytes: Boolean = false
 )

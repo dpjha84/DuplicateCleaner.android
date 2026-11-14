@@ -66,6 +66,8 @@ fun MainScreen(
     onTrash: () -> Unit,
     onRestore: () -> Unit,
     onEmptyTrash: () -> Unit,
+    pro: ProActions,
+    smart: SmartActions,
     onMessageShown: () -> Unit
 ) {
     var confirming by remember { mutableStateOf(false) }
@@ -89,7 +91,12 @@ fun MainScreen(
                 onToggle = onToggle,
                 onRule = onRule,
                 onRescan = onScan,
-                onTrash = { confirming = true },
+                pro = pro,
+                smart = smart,
+                onTrash = {
+                    // Over the free allowance? Show the paywall instead of the confirmation.
+                    if (state.fitsFreeAllowance) confirming = true else pro.openPaywall()
+                },
                 onRestore = onRestore,
                 onEmptyTrash = onEmptyTrash
             )
@@ -119,6 +126,8 @@ fun MainScreen(
             )
         }
     }
+
+    if (state.showPaywall) PaywallDialog(state, pro)
 
     if (confirming) {
         AlertDialog(
@@ -186,7 +195,11 @@ private fun ScanningContent(state: UiState, onCancel: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(8.dp))
-            Text("${p.done} / ${p.total}", style = MaterialTheme.typography.bodySmall)
+            Text(
+                if (p.isBytes) "${formatSize(p.done)} / ${formatSize(p.total)}"
+                else "${p.done} / ${p.total}",
+                style = MaterialTheme.typography.bodySmall
+            )
         } else {
             LinearProgressIndicator(Modifier.fillMaxWidth())
         }
@@ -205,8 +218,16 @@ private fun ResultsContent(
     onRescan: () -> Unit,
     onTrash: () -> Unit,
     onRestore: () -> Unit,
-    onEmptyTrash: () -> Unit
+    onEmptyTrash: () -> Unit,
+    pro: ProActions,
+    smart: SmartActions
 ) {
+    val visible = remember(state.groups, state.smart, state.reviewed, state.reviewOnly, state.keepRule) {
+        state.visibleGroups
+    }
+    val reviewCount = remember(state.groups, state.smart, state.reviewed, state.keepRule) {
+        state.reviewGroups.size
+    }
     val folders = remember(state.groups) { folderStats(state.groups).take(6) }
 
     Column(Modifier.fillMaxSize()) {
@@ -221,6 +242,12 @@ private fun ResultsContent(
                     "Reclaimable: ${formatSize(state.groups.sumOf { it.reclaimable })}",
                     style = MaterialTheme.typography.bodySmall
                 )
+                Text(
+                    if (state.isPro) "Pro · unlimited cleanup"
+                    else "Free cleanup left: ${formatSize(state.freeRemaining)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
             OutlinedButton(onClick = onRescan) { Text("Rescan") }
         }
@@ -231,16 +258,20 @@ private fun ResultsContent(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
         ) {
             if (state.groups.isNotEmpty()) {
+                item { ReclaimByTypeCard(state.groups) }
+                if (reviewCount > 0) item { ReviewCard(reviewCount, state.reviewOnly, smart) }
                 item { KeepRuleCard(state, onRule) }
                 item { FolderSummaryCard(folders, state, onRule) }
             }
             if (state.trashCount > 0) {
                 item { TrashCard(state.trashCount, state.trashBytes, onRestore, onEmptyTrash) }
             }
-            items(state.groups, key = { g -> g.files.first().path }) { group ->
-                GroupCard(group, state, imageLoader, onToggle, onPreview)
+            items(visible, key = { g -> g.files.first().path }) { group ->
+                GroupCard(group, state, imageLoader, onToggle, onPreview) { smart.markReviewed(group) }
             }
         }
+
+        if (!state.isPro) BannerAd(Modifier.fillMaxWidth())
 
         if (state.groups.isNotEmpty()) {
             Button(
@@ -250,7 +281,12 @@ private fun ResultsContent(
             ) {
                 Icon(Icons.Default.Delete, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
-                Text("Move ${state.selected.size} files to trash (${formatSize(state.selectedBytes)})")
+                Text(
+                    if (state.fitsFreeAllowance)
+                        "Move ${state.selected.size} files to trash (${formatSize(state.selectedBytes)})"
+                    else
+                        "Free up ${formatSize(state.selectedBytes)} · see options"
+                )
             }
         }
     }
@@ -263,13 +299,16 @@ private fun KeepRuleCard(state: UiState, onRule: (KeepRule, String?) -> Unit) {
             Text("Which copy should be kept?", style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RuleButton("Smart", state.keepRule == KeepRule.SMART, Modifier.weight(1f)) {
+                    onRule(KeepRule.SMART, null)
+                }
                 RuleButton("Oldest", state.keepRule == KeepRule.OLDEST, Modifier.weight(1f)) {
                     onRule(KeepRule.OLDEST, null)
                 }
                 RuleButton("Newest", state.keepRule == KeepRule.NEWEST, Modifier.weight(1f)) {
                     onRule(KeepRule.NEWEST, null)
                 }
-                RuleButton("Short path", state.keepRule == KeepRule.SHORTEST_PATH, Modifier.weight(1f)) {
+                RuleButton("Shortest", state.keepRule == KeepRule.SHORTEST_PATH, Modifier.weight(1f)) {
                     onRule(KeepRule.SHORTEST_PATH, null)
                 }
             }
@@ -377,14 +416,39 @@ private fun GroupCard(
     state: UiState,
     imageLoader: ImageLoader,
     onToggle: (MediaFile) -> Unit,
-    onPreview: (MediaFile) -> Unit
+    onPreview: (MediaFile) -> Unit,
+    onReviewed: () -> Unit
 ) {
+    val choice = if (state.keepRule == KeepRule.SMART) state.choiceFor(group) else null
+    val needsReview = choice?.confident == false && group.files.none { it.path in state.reviewed }
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(
                 "${group.files.size} copies · ${formatSize(group.size)} each",
                 style = MaterialTheme.typography.labelLarge
             )
+            if (choice != null) {
+                Text(
+                    "Smart pick: ${choice.reason}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            if (needsReview) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Not sure about this one. Please check.",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    TextButton(onClick = onReviewed) { Text("Looks good") }
+                }
+            }
             Text("Tap a file to preview it", style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
             group.files.sortedBy { it.dateModified }.forEach { file ->

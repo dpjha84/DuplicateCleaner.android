@@ -14,6 +14,19 @@ android {
         // Play Store needs a higher versionCode for every upload; CI uses the run number.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "1.0"
+
+        // AdMob IDs. Release builds read real IDs from the environment (GitHub secrets);
+        // without them, Google's public TEST IDs are used so you never ship or click real ads by accident.
+        manifestPlaceholders["admobAppId"] =
+            System.getenv("ADMOB_APP_ID") ?: "ca-app-pub-3940256099942544~3347511713"
+        buildConfigField(
+            "String", "ADMOB_BANNER_ID",
+            "\"${System.getenv("ADMOB_BANNER_ID") ?: "ca-app-pub-3940256099942544/6300978111"}\""
+        )
+        buildConfigField(
+            "String", "ADMOB_REWARDED_ID",
+            "\"${System.getenv("ADMOB_REWARDED_ID") ?: "ca-app-pub-3940256099942544/5224354917"}\""
+        )
     }
 
     // Release signing comes from environment variables set by the GitHub workflow.
@@ -31,6 +44,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Debug builds always use Google's test ads.
+            manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
+            buildConfigField("String", "ADMOB_BANNER_ID", "\"ca-app-pub-3940256099942544/6300978111\"")
+            buildConfigField("String", "ADMOB_REWARDED_ID", "\"ca-app-pub-3940256099942544/5224354917\"")
+        }
         release {
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
@@ -50,6 +69,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -70,5 +90,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-video:2.6.0")
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
+    implementation("com.google.android.gms:play-services-ads:23.3.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

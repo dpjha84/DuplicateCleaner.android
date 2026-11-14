@@ -26,6 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.example.duplicatecleaner.ui.MainScreen
+import com.example.duplicatecleaner.ui.ProActions
+import com.example.duplicatecleaner.ui.SmartActions
 
 class MainActivity : ComponentActivity() {
 
@@ -75,6 +77,18 @@ class MainActivity : ComponentActivity() {
                         onTrash = viewModel::trashSelected,
                         onRestore = viewModel::restoreTrash,
                         onEmptyTrash = viewModel::emptyTrash,
+                        pro = ProActions(
+                            openPaywall = viewModel::openPaywall,
+                            closePaywall = viewModel::closePaywall,
+                            buy = { viewModel.buyPro(this@MainActivity) },
+                            watchAd = { viewModel.watchAd(this@MainActivity) },
+                            cleanFree = viewModel::cleanFreePortion,
+                            restore = viewModel::restorePurchase
+                        ),
+                        smart = SmartActions(
+                            markReviewed = viewModel::markReviewed,
+                            toggleReviewOnly = viewModel::toggleReviewOnly
+                        ),
                         onMessageShown = viewModel::messageShown
                     )
                 }
