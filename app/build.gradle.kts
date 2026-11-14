@@ -17,6 +17,9 @@ android {
 
         // AdMob IDs. Release builds read real IDs from the environment (GitHub secrets);
         // without them, Google's public TEST IDs are used so you never ship or click real ads by accident.
+        // Public URL of the privacy policy, shown in Settings (leave empty to hide the row).
+        buildConfigField("String", "PRIVACY_URL", "\"${System.getenv("PRIVACY_URL") ?: ""}\"")
+
         manifestPlaceholders["admobAppId"] =
             System.getenv("ADMOB_APP_ID") ?: "ca-app-pub-3940256099942544~3347511713"
         buildConfigField(
@@ -80,6 +83,7 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
     implementation(composeBom)
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")

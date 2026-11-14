@@ -24,7 +24,10 @@ class Entitlements(context: Context) {
         get() = prefs.getLong(KEY_BONUS, 0L)
         set(value) = prefs.edit().putLong(KEY_BONUS, value).apply()
 
-    fun freeRemaining(): Long = (FREE_BYTES + bonusBytes - usedBytes).coerceAtLeast(0L)
+    fun freeRemaining(): Long = (freeTotal() - usedBytes).coerceAtLeast(0L)
+
+    /** Free allowance including bonuses from rewarded ads. */
+    fun freeTotal(): Long = FREE_BYTES + bonusBytes
 
     fun recordUsed(bytes: Long) {
         usedBytes += bytes

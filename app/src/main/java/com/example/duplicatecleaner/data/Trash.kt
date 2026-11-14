@@ -11,22 +11,29 @@ import java.io.File
 object Trash {
     const val DIR_NAME = "DuplicateCleaner Trash"
 
-    data class Stats(val count: Int, val bytes: Long)
     data class MoveResult(val moved: List<String>, val failed: Int)
 
     private val root: File get() = Environment.getExternalStorageDirectory()
     val dir: File get() = File(root, DIR_NAME)
 
-    fun stats(): Stats {
+    /** Everything currently in the trash, largest first. [MediaFile.folder] is the ORIGINAL folder. */
+    fun list(): List<MediaFile> {
         val d = dir
-        if (!d.exists()) return Stats(0, 0)
-        var count = 0
-        var bytes = 0L
-        d.walkTopDown().filter { it.isFile && it.name != ".nomedia" }.forEach {
-            count++
-            bytes += it.length()
-        }
-        return Stats(count, bytes)
+        if (!d.exists()) return emptyList()
+        return d.walkTopDown()
+            .filter { it.isFile && it.name != ".nomedia" }
+            .map { f ->
+                MediaFile(
+                    path = f.absolutePath,
+                    name = f.name,
+                    size = f.length(),
+                    kind = kindOfExtension(f.extension),
+                    dateModified = f.lastModified(),
+                    folder = f.parentFile?.relativeTo(d)?.path?.replace('\\', '/')?.takeIf { it != "." } ?: ""
+                )
+            }
+            .sortedByDescending { it.size }
+            .toList()
     }
 
     fun moveToTrash(paths: List<String>): MoveResult {
@@ -46,14 +53,23 @@ object Trash {
         return MoveResult(moved, failed)
     }
 
-    /** Moves everything back to its original path. Returns restored paths and failure count. */
-    fun restoreAll(): Pair<List<String>, Int> {
+    /** Permanently deletes files outside the trash (the "Delete permanently" clean mode). */
+    fun deletePermanently(paths: List<String>): MoveResult {
+        val deleted = mutableListOf<String>()
+        var failed = 0
+        for (p in paths) {
+            if (runCatching { File(p).delete() }.getOrDefault(false)) deleted += p else failed++
+        }
+        return MoveResult(deleted, failed)
+    }
+
+    /** Moves the given trashed files back to their original paths. Returns restored paths and failure count. */
+    fun restore(trashPaths: List<String>): Pair<List<String>, Int> {
         val d = dir
-        if (!d.exists()) return emptyList<String>() to 0
         val restored = mutableListOf<String>()
         var failed = 0
-        val files = d.walkTopDown().filter { it.isFile && it.name != ".nomedia" }.toList()
-        for (f in files) {
+        for (p in trashPaths) {
+            val f = File(p)
             val rel = f.relativeTo(d).path
             val dest = uniqueTarget(File(root, rel))
             if (relocate(f, dest)) restored += dest.absolutePath else failed++
@@ -62,20 +78,17 @@ object Trash {
         return restored to failed
     }
 
-    /** Permanently deletes everything in the trash. Returns number of files removed. */
-    fun empty(): Int {
-        val d = dir
-        if (!d.exists()) return 0
+    /** Permanently deletes the given trashed files. Returns how many were removed. */
+    fun delete(trashPaths: List<String>): Int {
         var removed = 0
-        d.walkTopDown().filter { it.isFile && it.name != ".nomedia" }.toList().forEach {
-            if (it.delete()) removed++
-        }
+        for (p in trashPaths) if (File(p).delete()) removed++
         pruneEmptyDirs()
         return removed
     }
 
     private fun pruneEmptyDirs() {
         val d = dir
+        if (!d.exists()) return
         d.walkBottomUp().filter { it != d && it.isDirectory }.forEach { it.delete() }
     }
 

@@ -88,3 +88,11 @@ Without them, Google's test ad IDs are used (safe for testing; no revenue). Debu
 
 Keep `upload.jks` backed up and never commit it (it is in `.gitignore`). Enrol in Play App
 Signing when you create the app in Play Console.
+
+## UI revamp (v1.0)
+- Bottom navigation: Home, Trash (with badge), Settings.
+- Home: scan-type chips (photos, videos, audio, documents, archives, apps, other), lifetime stats.
+- Results: smart keep with reasons, per-group Keep all / Clean all / Reset, type filters, "Which copy to keep?" sheet.
+- Trash: thumbnails, preview, selective restore, delete forever, empty trash.
+- Settings: plan and usage, min file size, trash vs delete, theme, privacy policy.
+- New adaptive launcher icon; store assets in docs/store/ (icon-512.png, feature-graphic.png).

@@ -22,15 +22,25 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -69,23 +80,24 @@ import java.text.DateFormat
 import java.util.Date
 
 /**
- * Full-screen preview of one copy from a duplicate group. Lets the user flip through the
- * other copies, see where each one lives, and mark it for trash or keep it.
+ * Full-screen preview of one file. Used for duplicates (action = keep / remove) and for the Trash
+ * (action = restore). Flip through the other files in the list with the arrows.
  */
 @Composable
 fun PreviewDialog(
     files: List<MediaFile>,
     index: Int,
-    selectedPaths: Set<String>,
     imageLoader: ImageLoader,
+    statusText: String,
+    statusIsWarning: Boolean,
+    actionLabel: String,
+    actionIcon: ImageVector,
+    actionEnabled: Boolean,
     onIndex: (Int) -> Unit,
-    onToggle: () -> Unit,
+    onAction: () -> Unit,
     onClose: () -> Unit
 ) {
     val file = files[index]
-    val isSelected = file.path in selectedPaths
-    val keepersLeft = files.count { it.path !in selectedPaths }
-    val canToggle = isSelected || keepersLeft > 1
     val context = LocalContext.current
 
     Dialog(
@@ -98,73 +110,67 @@ fun PreviewDialog(
                     .fillMaxSize()
                     .statusBarsPadding()
                     .navigationBarsPadding()
-                    .padding(16.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Copy ${index + 1} of ${files.size}", style = MaterialTheme.typography.labelLarge)
-                    TextButton(onClick = onClose) { Text("Close") }
+                // Top bar
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Close") }
+                    Column(Modifier.weight(1f)) {
+                        Text(file.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "${index + 1} of ${files.size} · ${formatSize(file.size)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(onClick = { openExternally(context, file) }) {
+                        Icon(Icons.Rounded.OpenInNew, "Open in another app")
+                    }
                 }
 
+                // Where it lives
                 Text(
-                    file.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "/" + file.folder,
+                    folderLabel(file.folder) + " · " + DateFormat.getDateInstance().format(Date(file.dateModified)),
                     style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 )
                 Text(
-                    "${formatSize(file.size)} · Modified " +
-                        DateFormat.getDateTimeInstance().format(Date(file.dateModified)),
-                    style = MaterialTheme.typography.bodySmall
+                    statusText,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (statusIsWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                 )
-                Text(
-                    if (isSelected) "Marked for trash" else "Will be kept",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isSelected) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.height(8.dp))
 
-                Box(Modifier.weight(1f).fillMaxWidth()) {
+                Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 8.dp)) {
                     key(file.path) { PreviewBody(file, imageLoader) }
                 }
 
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
+                // Bottom bar: previous, main action, next
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    FilledIconButton(
                         onClick = { onIndex((index - 1 + files.size) % files.size) },
-                        enabled = files.size > 1,
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Previous copy") }
-                    OutlinedButton(
+                        enabled = files.size > 1
+                    ) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Previous") }
+                    Button(
+                        onClick = onAction,
+                        enabled = actionEnabled,
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    ) {
+                        Icon(actionIcon, null, Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(actionLabel)
+                    }
+                    FilledIconButton(
                         onClick = { onIndex((index + 1) % files.size) },
-                        enabled = files.size > 1,
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Next copy") }
-                }
-                Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = onToggle,
-                    enabled = canToggle,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(if (isSelected) "Keep this copy" else "Mark for trash") }
-                if (!canToggle) {
-                    Text(
-                        "At least one copy must be kept.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                TextButton(onClick = { openExternally(context, file) }) {
-                    Text("Open in another app")
+                        enabled = files.size > 1
+                    ) { Icon(Icons.AutoMirrored.Rounded.ArrowForward, "Next") }
                 }
             }
         }
@@ -209,20 +215,17 @@ private fun ZoomableImage(file: MediaFile, imageLoader: ImageLoader) {
 
 @Composable
 private fun VideoPreview(file: MediaFile) {
-    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-        AndroidView(
-            factory = { ctx ->
-                VideoView(ctx).apply {
-                    setVideoPath(file.path)
-                    setOnPreparedListener { seekTo(1) } // show the first frame
-                    setOnClickListener { if (isPlaying) pause() else start() }
-                }
-            },
-            onRelease = { it.stopPlayback() },
-            modifier = Modifier.weight(1f).fillMaxWidth()
-        )
-        Text("Tap the video to play or pause", style = MaterialTheme.typography.bodySmall)
-    }
+    AndroidView(
+        factory = { ctx ->
+            VideoView(ctx).apply {
+                setVideoPath(file.path)
+                setOnPreparedListener { seekTo(1) } // show the first frame
+                setOnClickListener { if (isPlaying) pause() else start() }
+            }
+        },
+        onRelease = { it.stopPlayback() },
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 @Composable
@@ -248,17 +251,27 @@ private fun AudioPreview(file: MediaFile) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("♪", style = MaterialTheme.typography.displayLarge)
         if (player == null) {
-            Text("Can't play this audio file")
-        } else {
-            val seconds = player.duration / 1000
-            Text("Length %d:%02d".format(seconds / 60, seconds % 60))
+            IconCircle(FileKind.AUDIO.icon, tint = FileKind.AUDIO.tint, background = FileKind.AUDIO.tint.copy(alpha = 0.14f), size = 96.dp)
             Spacer(Modifier.height(12.dp))
-            Button(onClick = {
-                if (playing) player.pause() else player.start()
-                playing = !playing
-            }) { Text(if (playing) "Pause" else "Play") }
+            Text("Can't play this audio file", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            FilledIconButton(
+                onClick = {
+                    if (playing) player.pause() else player.start()
+                    playing = !playing
+                },
+                modifier = Modifier.size(96.dp)
+            ) {
+                Icon(
+                    if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    if (playing) "Pause" else "Play",
+                    Modifier.size(48.dp)
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            val seconds = player.duration / 1000
+            Text("%d:%02d".format(seconds / 60, seconds % 60), style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -276,15 +289,16 @@ private fun DocumentPreview(file: MediaFile) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            IconCircle(file.kind.icon, tint = file.kind.tint, background = file.kind.tint.copy(alpha = 0.14f), size = 96.dp)
+            Spacer(Modifier.height(16.dp))
+            Text(ext.ifEmpty { "FILE" }.take(5).uppercase(), style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(6.dp))
             Text(
-                ext.ifEmpty { "FILE" }.take(5).uppercase(),
-                style = MaterialTheme.typography.displaySmall
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "No in-app preview for this type. Use \"Open in another app\" to see its contents.",
+                "No preview for this type. Tap the open icon to view it in another app.",
                 style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
             )
         }
     }
@@ -338,12 +352,16 @@ private fun PdfPreview(file: MediaFile) {
         if (r != null && r.count > 1) {
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = { page-- }, enabled = page > 0) { Text("Previous page") }
-                Text("${page + 1} / ${r.count}", style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { page++ }, enabled = page < r.count - 1) { Text("Next page") }
+                IconButton(onClick = { page-- }, enabled = page > 0) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Previous page")
+                }
+                Text("${page + 1} / ${r.count}", style = MaterialTheme.typography.labelLarge)
+                IconButton(onClick = { page++ }, enabled = page < r.count - 1) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowForward, "Next page")
+                }
             }
         }
     }

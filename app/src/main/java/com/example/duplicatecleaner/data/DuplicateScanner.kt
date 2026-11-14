@@ -32,8 +32,22 @@ class DuplicateScanner(
     private val parallelism: Int = Runtime.getRuntime().availableProcessors().coerceIn(2, 4)
 ) {
 
-    suspend fun scan(onProgress: (ScanProgress) -> Unit): List<DuplicateGroup> =
+    // Filters for the scan in progress (set at the start of scan()).
+    @Volatile private var kinds: Set<FileKind> = FileKind.entries.toSet()
+    @Volatile private var minBytes: Long = 1024L
+
+    /**
+     * @param kinds which file types to include
+     * @param minBytes ignore files smaller than this
+     */
+    suspend fun scan(
+        kinds: Set<FileKind>,
+        minBytes: Long,
+        onProgress: (ScanProgress) -> Unit
+    ): List<DuplicateGroup> =
         withContext(Dispatchers.IO) {
+            this@DuplicateScanner.kinds = kinds
+            this@DuplicateScanner.minBytes = minBytes
             val root = Environment.getExternalStorageDirectory()
 
             // Stage 1: list files.
@@ -130,13 +144,15 @@ class DuplicateScanner(
 
     private fun toMediaFile(f: File, rootPath: String): MediaFile? {
         if (f.name.startsWith(".")) return null
+        val kind = kindOf(f.extension)
+        if (kind !in kinds) return null
         val size = f.length()
-        if (size < MIN_BYTES) return null // ignore tiny files such as empty or stub files
+        if (size < minBytes) return null
         return MediaFile(
             path = f.absolutePath,
             name = f.name,
             size = size,
-            kind = kindOf(f.extension),
+            kind = kind,
             dateModified = f.lastModified(),
             folder = f.parentFile?.absolutePath?.removePrefix(rootPath)?.trimStart('/') ?: ""
         )
@@ -238,17 +254,9 @@ class DuplicateScanner(
         fun finish() = sink(ScanProgress(message, total, total, isBytes))
     }
 
-    private fun kindOf(ext: String): FileKind = when (ext.lowercase()) {
-        "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp" -> FileKind.IMAGE
-        "mp4", "mkv", "mov", "avi", "3gp", "webm", "m4v" -> FileKind.VIDEO
-        "mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "amr" -> FileKind.AUDIO
-        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "rtf",
-        "odt", "ods", "epub", "md" -> FileKind.DOCUMENT
-        else -> FileKind.OTHER
-    }
+    private fun kindOf(ext: String): FileKind = kindOfExtension(ext)
 
     private companion object {
         const val SAMPLE_BYTES = 64L * 1024
-        const val MIN_BYTES = 1024L
     }
 }
