@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and below: back up only the free-allowance counters, so a reinstall does not reset them. -->
+<full-backup-content>
+    <include domain="sharedpref" path="entitlements.xml"/>
+</full-backup-content>

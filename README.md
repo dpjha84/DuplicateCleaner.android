@@ -39,7 +39,7 @@ A pool of 2–4 workers is used (based on CPU cores) to speed things up without 
 phone. The app must stay open during a scan; there is no background service yet.
 
 ## Business model (freemium + light ads)
-- **Free:** unlimited scanning, previews and trash/restore, plus **1 GB of cleanup**.
+- **Free:** unlimited scanning, previews and trash/restore, plus **500 MB of cleanup** (+500 MB per rewarded ad; similar-photo cleanup is Pro only).
 - **Rewarded ad:** +500 MB of free cleanup each time (free users only).
 - **Pro, one-time in-app purchase** (`pro_unlock`): unlimited cleanup, no ads. No subscription.
 - **Ads:** one banner on the results list and the rewarded ad. Never during scanning, previews or deleting.
@@ -96,3 +96,24 @@ Signing when you create the app in Play Console.
 - Trash: thumbnails, preview, selective restore, delete forever, empty trash.
 - Settings: plan and usage, min file size, trash vs delete, theme, privacy policy.
 - New adaptive launcher icon; store assets in docs/store/ (icon-512.png, feature-graphic.png).
+
+## Similar photos (v1.1)
+- Finds photos that look alike even when the files differ: resized, recompressed, brightness or contrast
+  edits, light watermarks, copies saved with a different rotation tag.
+- Runs after the exact scan, so identical results show immediately and similar ones fill in with a progress bar.
+- Method: 512-bit brightness-gradient fingerprint per photo (17x17 grid) + a hue fingerprint and aspect check,
+  matched with locality-sensitive hashing. About 100k photos group in about a second; fingerprints are cached
+  in a local SQLite file, so rescans only decode new or changed photos.
+- Monetization: finding and previewing similar photos is free; cleaning them is a Pro feature (the free
+  allowance and rewarded ads only apply to exact duplicates).
+- Safety: the best photo (highest resolution, then largest, then oldest) is kept by default, every other
+  photo goes to Trash (restorable). Match level (Strict / Balanced / Loose) re-groups instantly.
+- Known limits: crops, large camera shifts and photos taken seconds apart from different angles are not matched
+  at Strict/Balanced; Loose catches some. Line-art icons that differ only in small details can match each other.
+
+## Free allowance and reinstalls
+The used/bonus counters are kept in app preferences, in Android Auto Backup (restored on reinstall or a new
+phone) and in a signed hidden marker file `.cloneout_state` in shared storage (survives uninstall and clear
+data; the app already has all-files access). Counters only go up, so the larger value wins. Limits: a user who
+deletes the marker and disables backup can still reset it. Closing that fully needs a server (Play Integrity
+device recall + a small backend); only worth it if abuse shows up in the numbers.

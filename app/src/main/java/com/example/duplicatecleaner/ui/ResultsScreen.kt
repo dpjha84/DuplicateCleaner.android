@@ -28,6 +28,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.DeleteSweep
@@ -53,10 +55,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,6 +77,7 @@ import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import com.example.duplicatecleaner.KeepRule
 import com.example.duplicatecleaner.MainViewModel
+import com.example.duplicatecleaner.ResultsTab
 import com.example.duplicatecleaner.UiState
 import com.example.duplicatecleaner.data.CleanMode
 import com.example.duplicatecleaner.data.DuplicateGroup
@@ -88,10 +95,13 @@ fun ResultsScreen(
 ) {
     var confirming by remember { mutableStateOf(false) }
     var showSheet by remember { mutableStateOf(false) }
-    var previewing by remember { mutableStateOf<MediaFile?>(null) }
+    var previewPath by remember { mutableStateOf<String?>(null) }
+    val similarTab = state.resultsTab == ResultsTab.SIMILAR
 
     // Derived data is cached; the lists can be thousands of groups long.
-    val summary = remember(state.groups, state.selected, state.typeFilter) { state.selectionSummary() }
+    val summary = remember(
+        state.groups, state.selected, state.typeFilter, state.similarGroups, state.similarSelected, state.resultsTab
+    ) { state.activeSummary() }
     val visible = remember(
         state.groups, state.smart, state.reviewed, state.reviewOnly, state.keepRule, state.typeFilter
     ) { state.visibleGroups }
@@ -101,8 +111,12 @@ fun ResultsScreen(
     val kindCounts = remember(state.groups) { state.groups.groupingBy { it.kind }.eachCount() }
     val totalReclaim = remember(state.groups) { state.groups.sumOf { it.reclaimable } }
     val totalFiles = remember(state.groups) { state.groups.sumOf { it.files.size } }
+    val similarReclaim = remember(state.similarGroups) { state.similarGroups.sumOf { it.reclaimable } }
+    val similarPhotos = remember(state.similarGroups) { state.similarGroups.sumOf { it.photos.size } }
 
-    if (state.groups.isEmpty()) {
+    val nothingAtAll = state.groups.isEmpty() &&
+        (!state.similarScanned || (!state.similarRunning && state.similarGroups.isEmpty()))
+    if (nothingAtAll) {
         Column(Modifier.fillMaxSize()) {
             TopRow(onBack = vm::leaveResults, onTune = null)
             EmptyState(
@@ -116,29 +130,47 @@ fun ResultsScreen(
         return
     }
 
+    val onTune: (() -> Unit)? = if (similarTab) null else ({ showSheet = true })
+
     Column(Modifier.fillMaxSize()) {
-        TopRow(onBack = vm::leaveResults, onTune = { showSheet = true })
+        TopRow(onBack = vm::leaveResults, onTune = onTune)
+        if (state.similarScanned) ResultsTabs(state, vm)
 
         LazyColumn(
             Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item(key = "hero") {
-                HeroSummary(state, totalReclaim, totalFiles, pro)
-            }
-            if (kindCounts.size > 1) {
-                item(key = "filters") {
-                    KindFilters(state.typeFilter, kindCounts, state.groups.size, vm)
+            if (similarTab) {
+                similarItems(state, vm, imageLoader, pro, similarReclaim, similarPhotos) { previewPath = it }
+            } else if (state.groups.isEmpty()) {
+                item(key = "identical-empty") {
+                    Column(
+                        Modifier.fillMaxWidth().padding(vertical = 56.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        IconCircle(Icons.Rounded.AutoAwesome, size = 72.dp)
+                        Spacer(Modifier.height(16.dp))
+                        Text("No identical files", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
-            }
-            if (reviewCount > 0) {
-                item(key = "review") {
-                    ReviewBanner(reviewCount, state.reviewOnly, vm::toggleReviewOnly)
+            } else {
+                item(key = "hero") {
+                    HeroSummary(state, totalReclaim, "can be reclaimed · $totalFiles files in ${state.groups.size} groups", pro)
                 }
-            }
-            items(visible, key = { it.files.first().path }) { group ->
-                GroupCard(group, state, imageLoader, vm) { previewing = it }
+                if (kindCounts.size > 1) {
+                    item(key = "filters") {
+                        KindFilters(state.typeFilter, kindCounts, state.groups.size, vm)
+                    }
+                }
+                if (reviewCount > 0) {
+                    item(key = "review") {
+                        ReviewBanner(reviewCount, state.reviewOnly, vm::toggleReviewOnly)
+                    }
+                }
+                items(visible, key = { it.files.first().path }) { group ->
+                    GroupCard(group, state, imageLoader, vm) { previewPath = it.path }
+                }
             }
         }
 
@@ -148,25 +180,53 @@ fun ResultsScreen(
     }
 
     // Preview
-    previewing?.let { current ->
-        val group = state.groups.firstOrNull { g -> g.files.any { it.path == current.path } }
-        if (group != null) {
-            val files = remember(group) { group.files.sortedBy { it.dateModified } }
-            val idx = files.indexOfFirst { it.path == current.path }.coerceAtLeast(0)
-            val remove = files[idx].path in state.selected
-            PreviewDialog(
-                files = files,
-                index = idx,
-                imageLoader = imageLoader,
-                statusText = if (remove) "Will be cleaned" else "Will be kept",
-                statusIsWarning = remove,
-                actionLabel = if (remove) "Keep this copy" else "Clean this copy",
-                actionIcon = if (remove) Icons.Rounded.Check else Icons.Rounded.Delete,
-                actionEnabled = true,
-                onIndex = { previewing = files[it] },
-                onAction = { vm.toggle(files[idx]) },
-                onClose = { previewing = null }
-            )
+    previewPath?.let { path ->
+        if (similarTab) {
+            val group = state.similarGroups.firstOrNull { g -> g.photos.any { it.file.path == path } }
+            if (group != null) {
+                val photos = group.photos
+                val idx = photos.indexOfFirst { it.file.path == path }.coerceAtLeast(0)
+                val cur = photos[idx]
+                val remove = cur.file.path in state.similarSelected
+                PreviewDialog(
+                    files = photos.map { it.file },
+                    index = idx,
+                    imageLoader = imageLoader,
+                    statusText = "${cur.width}×${cur.height} · ${formatSize(cur.file.size)}" +
+                        (if (idx == 0) " · Best" else "") + (if (remove) " · Will be cleaned" else ""),
+                    statusIsWarning = remove,
+                    actionLabel = if (remove) "Keep this photo" else "Clean this photo",
+                    actionIcon = if (remove) Icons.Rounded.Check else Icons.Rounded.Delete,
+                    actionEnabled = true,
+                    onIndex = { previewPath = photos[it].file.path },
+                    onAction = { vm.toggleSimilar(cur.file) },
+                    onClose = { previewPath = null }
+                )
+            } else {
+                LaunchedEffect(path) { previewPath = null }
+            }
+        } else {
+            val group = state.groups.firstOrNull { g -> g.files.any { it.path == path } }
+            if (group != null) {
+                val files = remember(group) { group.files.sortedBy { it.dateModified } }
+                val idx = files.indexOfFirst { it.path == path }.coerceAtLeast(0)
+                val remove = files[idx].path in state.selected
+                PreviewDialog(
+                    files = files,
+                    index = idx,
+                    imageLoader = imageLoader,
+                    statusText = if (remove) "Will be cleaned" else "Will be kept",
+                    statusIsWarning = remove,
+                    actionLabel = if (remove) "Keep this copy" else "Clean this copy",
+                    actionIcon = if (remove) Icons.Rounded.Check else Icons.Rounded.Delete,
+                    actionEnabled = true,
+                    onIndex = { previewPath = files[it].path },
+                    onAction = { vm.toggle(files[idx]) },
+                    onClose = { previewPath = null }
+                )
+            } else {
+                LaunchedEffect(path) { previewPath = null }
+            }
         }
     }
 
@@ -269,6 +329,28 @@ fun ResultsScreen(
 }
 
 @Composable
+private fun ResultsTabs(state: UiState, vm: MainViewModel) {
+    val index = if (state.resultsTab == ResultsTab.SIMILAR) 1 else 0
+    TabRow(selectedTabIndex = index, containerColor = Color.Transparent) {
+        Tab(
+            selected = index == 0,
+            onClick = { vm.setResultsTab(ResultsTab.IDENTICAL) },
+            icon = { Icon(Icons.Rounded.ContentCopy, null, Modifier.size(20.dp)) },
+            text = { Text("Identical ${state.groups.size}") }
+        )
+        Tab(
+            selected = index == 1,
+            onClick = { vm.setResultsTab(ResultsTab.SIMILAR) },
+            icon = {
+                if (state.similarRunning) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                else Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(20.dp))
+            },
+            text = { Text(if (state.similarRunning) "Similar" else "Similar ${state.similarGroups.size}") }
+        )
+    }
+}
+
+@Composable
 private fun TopRow(onBack: () -> Unit, onTune: (() -> Unit)?) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
@@ -280,7 +362,7 @@ private fun TopRow(onBack: () -> Unit, onTune: (() -> Unit)?) {
 }
 
 @Composable
-private fun HeroSummary(state: UiState, totalReclaim: Long, totalFiles: Int, pro: ProActions) {
+internal fun HeroSummary(state: UiState, totalReclaim: Long, subtitle: String, pro: ProActions) {
     GradientCard {
         Column {
             Text(
@@ -289,7 +371,7 @@ private fun HeroSummary(state: UiState, totalReclaim: Long, totalFiles: Int, pro
                 color = Color.White
             )
             Text(
-                "can be reclaimed · $totalFiles files in ${state.groups.size} groups",
+                subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.85f)
             )
@@ -303,13 +385,20 @@ private fun HeroSummary(state: UiState, totalReclaim: Long, totalFiles: Int, pro
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    if (state.isPro) Icons.Rounded.Verified else Icons.Rounded.Bolt, null,
-                    Modifier.size(18.dp), tint = Color.White
+                    when {
+                        state.isPro -> Icons.Rounded.Verified
+                        state.similarLocked -> Icons.Rounded.Lock
+                        else -> Icons.Rounded.Bolt
+                    },
+                    null, Modifier.size(18.dp), tint = Color.White
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    if (state.isPro) "Pro · unlimited cleanup"
-                    else "Free cleanup left: ${formatSize(state.freeRemaining)}",
+                    when {
+                        state.isPro -> "Pro · unlimited cleanup"
+                        state.similarLocked -> "Pro unlocks cleaning similar photos"
+                        else -> "Free cleanup left: ${formatSize(state.freeRemaining)}"
+                    },
                     style = MaterialTheme.typography.labelLarge,
                     color = Color.White
                 )

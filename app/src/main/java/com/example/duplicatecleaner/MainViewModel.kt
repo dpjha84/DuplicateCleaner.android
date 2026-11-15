@@ -15,6 +15,12 @@ import com.example.duplicatecleaner.data.FileKind
 import com.example.duplicatecleaner.data.MediaFile
 import com.example.duplicatecleaner.data.Prefs
 import com.example.duplicatecleaner.data.ScanProgress
+import com.example.duplicatecleaner.data.Sensitivity
+import com.example.duplicatecleaner.data.SimilarCandidate
+import com.example.duplicatecleaner.data.SimilarGrouper
+import com.example.duplicatecleaner.data.SimilarGroup
+import com.example.duplicatecleaner.data.SimilarPhoto
+import com.example.duplicatecleaner.data.SimilarPhotoScanner
 import com.example.duplicatecleaner.data.SmartChoice
 import com.example.duplicatecleaner.data.SmartKeeper
 import com.example.duplicatecleaner.data.ThemeMode
@@ -32,6 +38,9 @@ import kotlinx.coroutines.withContext
 enum class Phase { IDLE, SCANNING, RESULTS }
 
 enum class Tab { HOME, TRASH, SETTINGS }
+
+/** The two kinds of results: identical files and similar-looking photos. */
+enum class ResultsTab { IDENTICAL, SIMILAR }
 
 /** Which copy to keep in every duplicate group. Everything else is pre-selected. */
 enum class KeepRule { SMART, OLDEST, NEWEST, SHORTEST_PATH, IN_FOLDER }
@@ -70,7 +79,19 @@ data class UiState(
     /** Show and clean only this file type; null = everything. */
     val typeFilter: FileKind? = null,
 
+    // Similar photos
+    val resultsTab: ResultsTab = ResultsTab.IDENTICAL,
+    /** True when this scan includes similar photos (the Similar tab exists). */
+    val similarScanned: Boolean = false,
+    val similarRunning: Boolean = false,
+    val similarProgress: Float = 0f,
+    val similarGroups: List<SimilarGroup> = emptyList(),
+    /** Photos Clean up will act on while the Similar tab is open. */
+    val similarSelected: Set<String> = emptySet(),
+
     // Settings
+    val scanSimilar: Boolean = true,
+    val similarLevel: Sensitivity = Sensitivity.BALANCED,
     val scanKinds: Set<FileKind> = FileKind.entries.toSet(),
     val minSizeBytes: Long = 1024L,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -114,8 +135,28 @@ data class UiState(
         return SelectionSummary(files, files.sumOf { it.size }, fully)
     }
 
+    fun similarSummary(): SelectionSummary {
+        val files = ArrayList<MediaFile>()
+        var fully = 0
+        for (g in similarGroups) {
+            var all = true
+            for (p in g.photos) {
+                if (p.file.path in similarSelected) files += p.file else all = false
+            }
+            if (all) fully++
+        }
+        return SelectionSummary(files, files.sumOf { it.size }, fully)
+    }
+
+    /** What Clean up acts on for the tab that is open. */
+    fun activeSummary(): SelectionSummary =
+        if (resultsTab == ResultsTab.SIMILAR) similarSummary() else selectionSummary()
+
+    /** Cleaning similar photos is a Pro feature (finding and previewing them stays free). */
+    val similarLocked: Boolean get() = resultsTab == ResultsTab.SIMILAR && !isPro
+
     /** True when [bytes] can be cleaned without paying. */
-    fun fits(bytes: Long): Boolean = isPro || bytes <= freeRemaining
+    fun fits(bytes: Long): Boolean = isPro || (resultsTab != ResultsTab.SIMILAR && bytes <= freeRemaining)
 
     fun choiceFor(group: DuplicateGroup): SmartChoice? =
         group.files.firstNotNullOfOrNull { smart[it.path] }
@@ -139,6 +180,14 @@ data class UiState(
         }
 }
 
+/** The group after some photos were cleaned; if the best one went, the next best takes over. */
+fun SimilarGroup.without(gone: Set<String>): SimilarGroup {
+    if (photos.none { it.file.path in gone }) return this
+    val left: List<SimilarPhoto> = photos.filter { it.file.path !in gone }
+    val bestSurvived = left.isNotEmpty() && left.first().file.path == bestPath
+    return SimilarGroup(left, if (bestSurvived) reason else "Best remaining photo")
+}
+
 /** Folders ranked by how much duplicate data they contain. */
 fun folderStats(groups: List<DuplicateGroup>): List<FolderStat> =
     groups.flatMap { it.files }
@@ -149,6 +198,7 @@ fun folderStats(groups: List<DuplicateGroup>): List<FolderStat> =
 class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private val scanner = DuplicateScanner()
+    private val similarScanner = SimilarPhotoScanner(app)
     private val entitlements = Entitlements(app)
     private val billing = BillingManager(app, entitlements)
     private val ads = AdManager(app)
@@ -156,6 +206,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private val _state = MutableStateFlow(
         UiState(
+            scanSimilar = prefs.scanSimilar,
+            similarLevel = prefs.similarLevel,
             scanKinds = prefs.scanKinds,
             minSizeBytes = prefs.minSizeBytes,
             themeMode = prefs.themeMode,
@@ -171,6 +223,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private var scanJob: Job? = null
+    private var similarJob: Job? = null
+    private var regroupJob: Job? = null
+
+    /** Signatures of this scan's photos, kept so changing the match level doesn't rescan. */
+    private var similarSigs: List<SimilarCandidate> = emptyList()
+    /** Files cleaned during this results session (a still-running similar scan must not resurrect them). */
+    private val gonePaths = HashSet<String>()
 
     init {
         refreshTrash()
@@ -202,6 +261,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     /** Back from the results screen to Home. */
     fun leaveResults() {
         scanJob?.cancel()
+        resetSimilar()
         _state.update {
             it.copy(
                 phase = Phase.IDLE, groups = emptyList(), selected = emptySet(),
@@ -210,12 +270,45 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private fun resetSimilar() {
+        similarJob?.cancel()
+        regroupJob?.cancel()
+        similarSigs = emptyList()
+        gonePaths.clear()
+        _state.update {
+            it.copy(
+                resultsTab = ResultsTab.IDENTICAL, similarScanned = false, similarRunning = false,
+                similarProgress = 0f, similarGroups = emptyList(), similarSelected = emptySet()
+            )
+        }
+    }
+
+    fun setResultsTab(tab: ResultsTab) = _state.update { it.copy(resultsTab = tab) }
+
     // ---- Settings ----
 
     fun toggleKind(kind: FileKind) {
         val next = _state.value.scanKinds.let { if (kind in it) it - kind else it + kind }
         prefs.scanKinds = next
         _state.update { it.copy(scanKinds = next) }
+    }
+
+    fun setScanSimilar(on: Boolean) {
+        prefs.scanSimilar = on
+        _state.update { it.copy(scanSimilar = on) }
+    }
+
+    /** Changes how alike photos must be. Re-groups from the saved signatures, so it is instant. */
+    fun setSimilarLevel(level: Sensitivity) {
+        if (level == _state.value.similarLevel) return
+        prefs.similarLevel = level
+        _state.update { it.copy(similarLevel = level) }
+        if (similarSigs.isEmpty() || _state.value.similarRunning) return
+        regroupJob?.cancel()
+        regroupJob = viewModelScope.launch {
+            val found = withContext(Dispatchers.Default) { SimilarGrouper.group(liveSigs(), level) }
+            _state.update { it.copy(similarGroups = found, similarSelected = defaultSimilarSelection(found)) }
+        }
     }
 
     fun setMinSize(bytes: Long) {
@@ -240,13 +333,22 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     // ---- Scanning ----
 
+    /** Re-reads the allowance marker (storage access may have just been granted). */
+    private fun refreshAllowance() {
+        if (entitlements.syncFromMarker()) {
+            _state.update { it.copy(freeRemaining = entitlements.freeRemaining(), freeTotal = entitlements.freeTotal()) }
+        }
+    }
+
     fun startScan() {
+        refreshAllowance()
         val s = _state.value
         if (s.scanKinds.isEmpty()) {
             toast("Pick at least one file type to scan")
             return
         }
         scanJob?.cancel()
+        resetSimilar()
         _state.update {
             it.copy(
                 tab = Tab.HOME, phase = Phase.SCANNING, progress = ScanProgress(), groups = emptyList(),
@@ -255,9 +357,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
         scanJob = viewModelScope.launch {
             try {
-                val groups = scanner.scan(s.scanKinds, s.minSizeBytes) { p ->
+                val result = scanner.scan(s.scanKinds, s.minSizeBytes) { p ->
                     _state.update { it.copy(progress = p) }
                 }
+                val groups = result.groups
                 val smart = withContext(Dispatchers.IO) { SmartKeeper.decideAll(groups) }
                 _state.update {
                     it.copy(
@@ -271,6 +374,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         selected = selectionFor(groups, KeepRule.SMART, null, smart)
                     )
                 }
+                if (s.scanSimilar && FileKind.IMAGE in s.scanKinds) startSimilar(result.images, groups, smart, s.minSizeBytes)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -282,7 +386,85 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun cancelScan() {
         scanJob?.cancel()
+        resetSimilar()
         _state.update { it.copy(phase = Phase.IDLE, groups = emptyList(), selected = emptySet()) }
+    }
+
+    // ---- Similar photos ----
+
+    /**
+     * Looks for similar photos in the background while the exact results are already on screen.
+     * Photos that are exact copies of each other count once (their duplicates are handled by the
+     * Identical tab), so the two tabs never overlap.
+     */
+    private fun startSimilar(
+        images: List<MediaFile>,
+        exact: List<DuplicateGroup>,
+        smart: Map<String, SmartChoice>,
+        minBytes: Long
+    ) {
+        _state.update {
+            it.copy(
+                similarScanned = true, similarRunning = true, similarProgress = 0f,
+                // Nothing identical to show: land on the tab that is working.
+                resultsTab = if (exact.isEmpty()) ResultsTab.SIMILAR else it.resultsTab
+            )
+        }
+        similarJob = viewModelScope.launch {
+            try {
+                val extraCopies = HashSet<String>()
+                for (g in exact) {
+                    if (g.kind != FileKind.IMAGE) continue
+                    val keep = g.files.firstNotNullOfOrNull { smart[it.path] }?.keeperPath ?: g.files.first().path
+                    g.files.forEach { if (it.path != keep) extraCopies += it.path }
+                }
+                val floor = maxOf(minBytes, SimilarPhotoScanner.MIN_BYTES)
+                val candidates = images.filter { it.path !in extraCopies && it.size >= floor }
+
+                val sigs = similarScanner.signatures(candidates) { done, total ->
+                    _state.update { it.copy(similarProgress = if (total == 0) 1f else done.toFloat() / total) }
+                }
+                similarSigs = sigs
+                val found = withContext(Dispatchers.Default) { SimilarGrouper.group(liveSigs(), _state.value.similarLevel) }
+                _state.update {
+                    it.copy(
+                        similarRunning = false,
+                        similarProgress = 1f,
+                        similarGroups = found,
+                        similarSelected = defaultSimilarSelection(found),
+                        // Nothing identical, but similar photos found: make sure they are in view.
+                        resultsTab = if (it.groups.isEmpty()) ResultsTab.SIMILAR else it.resultsTab
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(similarRunning = false) }
+                toast("Couldn't finish looking for similar photos")
+            }
+        }
+    }
+
+    /** Signatures minus anything already cleaned in this session. */
+    private fun liveSigs(): List<SimilarCandidate> =
+        if (gonePaths.isEmpty()) similarSigs else similarSigs.filter { it.file.path !in gonePaths }
+
+    /** Keep the best photo of every group, clean the rest. */
+    private fun defaultSimilarSelection(groups: List<SimilarGroup>): Set<String> =
+        groups.flatMapTo(HashSet()) { g -> g.photos.drop(1).map { it.file.path } }
+
+    fun toggleSimilar(file: MediaFile) = _state.update {
+        it.copy(similarSelected = if (file.path in it.similarSelected) it.similarSelected - file.path else it.similarSelected + file.path)
+    }
+
+    fun keepAllSimilar(group: SimilarGroup) = _state.update {
+        it.copy(similarSelected = it.similarSelected - group.files.map { f -> f.path }.toSet())
+    }
+
+    /** Back to "keep the best, clean the rest" for one group. */
+    fun resetSimilarGroup(group: SimilarGroup) = _state.update {
+        val paths = group.files.map { f -> f.path }.toSet()
+        it.copy(similarSelected = (it.similarSelected - paths) + group.photos.drop(1).map { p -> p.file.path })
     }
 
     // ---- Choosing what to clean ----
@@ -340,8 +522,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** Cleans the current selection (to Trash or permanently, per settings), or shows the paywall if over the allowance. */
     fun cleanSelected() {
+        refreshAllowance()
         val s = _state.value
-        val summary = s.selectionSummary()
+        val summary = s.activeSummary()
         if (summary.count == 0) return
         if (!s.fits(summary.bytes)) {
             openPaywall()
@@ -359,6 +542,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 r
             }
             val gone = result.moved.toSet()
+            gonePaths += gone
             val doneBytes = result.moved.sumOf { sizeByPath[it] ?: 0L }
             if (!_state.value.isPro) entitlements.recordUsed(doneBytes)
             if (mode == CleanMode.DELETE) prefs.addFreed(doneBytes, gone.size)
@@ -367,9 +551,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 val groups = st.groups
                     .map { g -> g.copy(files = g.files.filter { it.path !in gone }) }
                     .filter { it.files.size >= 2 }
+                val similar = st.similarGroups
+                    .map { g -> g.without(gone) }
+                    .filter { it.photos.size >= 2 }
                 st.copy(
                     groups = groups,
                     selected = st.selected - gone,
+                    similarGroups = similar,
+                    similarSelected = st.similarSelected - gone,
                     freeRemaining = entitlements.freeRemaining(),
                     freeTotal = entitlements.freeTotal(),
                     lifetimeFreedBytes = prefs.lifetimeFreedBytes,
@@ -464,10 +653,12 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** Shrinks the selection to the largest files that fit in what's left of the free allowance. */
     fun cleanFreePortion() {
+        // The free allowance never covers similar photos.
+        if (_state.value.similarLocked) return
         _state.update { s ->
             var budget = s.freeRemaining
             val keep = mutableSetOf<String>()
-            s.selectionSummary().files
+            s.activeSummary().files
                 .sortedByDescending { it.size }
                 .forEach { f ->
                     if (f.size <= budget) {
@@ -475,13 +666,20 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         budget -= f.size
                     }
                 }
-            val outsideScope = s.selected - s.scopedGroups.flatMap { g -> g.files.map { it.path } }.toSet()
-            s.copy(
-                selected = keep + outsideScope,
-                showPaywall = false,
-                message = if (keep.isEmpty()) "No selected file fits your free allowance" else null,
-                messageAction = null
-            )
+            val msg = if (keep.isEmpty()) "No selected file fits your free allowance" else null
+            if (s.resultsTab == ResultsTab.SIMILAR) {
+                val inScope = s.similarGroups.flatMap { g -> g.files.map { it.path } }.toSet()
+                s.copy(
+                    similarSelected = keep + (s.similarSelected - inScope),
+                    showPaywall = false, message = msg, messageAction = null
+                )
+            } else {
+                val outsideScope = s.selected - s.scopedGroups.flatMap { g -> g.files.map { it.path } }.toSet()
+                s.copy(
+                    selected = keep + outsideScope,
+                    showPaywall = false, message = msg, messageAction = null
+                )
+            }
         }
     }
 

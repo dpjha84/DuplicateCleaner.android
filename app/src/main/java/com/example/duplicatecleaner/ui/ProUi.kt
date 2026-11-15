@@ -77,13 +77,15 @@ fun PaywallDialog(state: UiState, selectedBytes: Long, actions: ProActions) {
                             color = Color.White
                         )
                         Text(
-                            "${formatSize(state.freeRemaining)} of free cleanup left",
+                            if (state.similarLocked) "Cleaning similar photos is a Pro feature"
+                            else "${formatSize(state.freeRemaining)} of free cleanup left",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.85f)
                         )
                     }
                 }
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Perk("Clean similar photos")
                     Perk("Unlimited cleanup")
                     Perk("No ads")
                     Perk("One payment, no subscription")
@@ -94,7 +96,8 @@ fun PaywallDialog(state: UiState, selectedBytes: Long, actions: ProActions) {
                         enabled = state.proPrice != null,
                         modifier = Modifier.fillMaxWidth().height(50.dp)
                     ) { Text(state.proPrice?.let { "Unlock Pro · $it" } ?: "Loading price…") }
-                    OutlinedButton(
+                    // Ads and the free allowance only apply to exact duplicates.
+                    if (!state.similarLocked) OutlinedButton(
                         onClick = actions.watchAd,
                         enabled = state.rewardReady,
                         modifier = Modifier.fillMaxWidth()
@@ -103,7 +106,7 @@ fun PaywallDialog(state: UiState, selectedBytes: Long, actions: ProActions) {
                         Spacer(Modifier.width(8.dp))
                         Text(if (state.rewardReady) "+${formatSize(Entitlements.REWARD_BYTES)} for a short ad" else "Ad loading…")
                     }
-                    if (state.freeRemaining > 0) {
+                    if (!state.similarLocked && state.freeRemaining > 0) {
                         TextButton(onClick = actions.cleanFree, modifier = Modifier.fillMaxWidth()) {
                             Text("Clean only what fits free (${formatSize(state.freeRemaining)})")
                         }

@@ -44,7 +44,7 @@ class DuplicateScanner(
         kinds: Set<FileKind>,
         minBytes: Long,
         onProgress: (ScanProgress) -> Unit
-    ): List<DuplicateGroup> =
+    ): ScanResult =
         withContext(Dispatchers.IO) {
             this@DuplicateScanner.kinds = kinds
             this@DuplicateScanner.minBytes = minBytes
@@ -57,7 +57,8 @@ class DuplicateScanner(
 
             // Stage 2: only files with exactly the same size can be duplicates.
             val candidates = all.groupBy { it.size }.filter { it.value.size > 1 }.values.flatten()
-            if (candidates.isEmpty()) return@withContext emptyList()
+            val images = all.filter { it.kind == FileKind.IMAGE }
+            if (candidates.isEmpty()) return@withContext ScanResult(emptyList(), images)
 
             // Stage 3: sampled hashes in parallel.
             val sampleProgress = Reporter("Comparing files…", candidates.size.toLong(), false, onProgress)
@@ -109,8 +110,11 @@ class DuplicateScanner(
                 }
             }
 
-            confirmed.sortedByDescending { it.reclaimable }
+            ScanResult(confirmed.sortedByDescending { it.reclaimable }, images)
         }
+
+    /** Exact-duplicate groups, plus every photo that was listed (reused for similar-photo matching). */
+    class ScanResult(val groups: List<DuplicateGroup>, val images: List<MediaFile>)
 
     // ---- Listing ----
 

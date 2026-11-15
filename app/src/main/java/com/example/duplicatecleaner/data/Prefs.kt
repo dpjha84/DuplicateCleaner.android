@@ -24,6 +24,14 @@ class Prefs(context: Context) {
         get() = p.getLong(KEY_MIN_SIZE, 1024L)
         set(v) = p.edit().putLong(KEY_MIN_SIZE, v).apply()
 
+    var scanSimilar: Boolean
+        get() = p.getBoolean(KEY_SIMILAR, true)
+        set(v) = p.edit().putBoolean(KEY_SIMILAR, v).apply()
+
+    var similarLevel: Sensitivity
+        get() = Sensitivity.entries.firstOrNull { it.name == p.getString(KEY_LEVEL, null) } ?: Sensitivity.BALANCED
+        set(v) = p.edit().putString(KEY_LEVEL, v.name).apply()
+
     var themeMode: ThemeMode
         get() = ThemeMode.entries.firstOrNull { it.name == p.getString(KEY_THEME, null) } ?: ThemeMode.SYSTEM
         set(v) = p.edit().putString(KEY_THEME, v.name).apply()
@@ -53,6 +61,8 @@ class Prefs(context: Context) {
     private companion object {
         const val KEY_KINDS = "kinds"
         const val KEY_MIN_SIZE = "min_size"
+        const val KEY_SIMILAR = "scan_similar"
+        const val KEY_LEVEL = "similar_level"
         const val KEY_THEME = "theme"
         const val KEY_DYNAMIC = "dynamic"
         const val KEY_CLEAN = "clean_mode"

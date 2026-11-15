@@ -35,7 +35,14 @@ not your payment details.
 
 ## Data stored on your device
 The app stores a small amount of data locally: whether Pro is unlocked and how much free cleanup you
-have used. This stays on your device.
+have used. For similar-photo matching it also keeps a small cache of numeric "fingerprints" of your photos
+so later scans are faster. The fingerprints cannot be turned back into pictures, never leave your device, and
+are deleted when you clear the app's data or uninstall it.
+
+To keep the free cleanup allowance fair across reinstalls, the app also stores two numbers (how much free
+cleanup was used, and ad bonuses) in a small hidden file named `.cloneout_state` in your internal storage,
+and in Android's automatic backup of the app (if you have backups on). The file contains no personal
+information and can be deleted at any time.
 
 ## Children
 The app is not directed to children under 13 (or the age required in your country), and we do not
