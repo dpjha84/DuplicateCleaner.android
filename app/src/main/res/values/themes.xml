@@ -4,8 +4,7 @@
     <!-- Launch theme: indigo background with the app mark, then hands over to the app theme. -->
     <style name="Theme.DuplicateCleaner.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#4F46E5</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_animated</item>
-        <item name="windowSplashScreenAnimationDuration">700</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.DuplicateCleaner</item>
     </style>
 </resources>

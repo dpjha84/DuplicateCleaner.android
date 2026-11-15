@@ -14,7 +14,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Modifier
+import com.dpjha.cloneout.ui.SplashOverlay
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,6 +51,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val state by viewModel.state.collectAsState()
             AppTheme(state.themeMode, state.dynamicColor) {
+              Box(Modifier.fillMaxSize()) {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     val permissionLauncher = rememberLauncherForActivityResult(
                         ActivityResultContracts.RequestMultiplePermissions()
@@ -87,6 +92,8 @@ class MainActivity : ComponentActivity() {
                         )
                     )
                 }
+                SplashOverlay()
+              }
             }
         }
     }
