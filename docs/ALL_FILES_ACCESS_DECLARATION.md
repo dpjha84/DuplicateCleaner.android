@@ -11,7 +11,7 @@ Copy and adjust. Keep the wording consistent with your store listing, because re
 File management (accessing, editing and maintaining files and folders outside app-specific storage).
 
 ## Why the permission is needed (draft)
-> Duplicate Cleaner's core and only purpose is to find and remove identical files anywhere on the
+> Cloneout's core and only purpose is to find and remove identical files anywhere on the
 > user's shared storage, across all file types (documents, downloads, archives, media). It must read
 > every user folder to compare file contents, and move the redundant copies into a recoverable trash
 > folder on the same storage. The Storage Access Framework cannot be used because it requires the user

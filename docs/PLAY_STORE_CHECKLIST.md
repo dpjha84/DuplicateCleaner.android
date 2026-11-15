@@ -30,3 +30,9 @@
 ## After launch
 - Watch the Play Console funnel: installs → permission granted → scan finished → paywall shown → purchase.
 - Reviews will tell you whether 1 GB is too generous or too tight; adjust `Entitlements.FREE_BYTES`.
+
+## Store listing name
+- App title (30 max): `Cloneout: Duplicate Cleaner`
+- Launcher label: `Cloneout`
+- Short description: "Find and remove duplicate photos, videos and files, safely."
+- Check the name is free on Play, as a domain and as a trademark before publishing.

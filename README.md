@@ -1,4 +1,4 @@
-# Duplicate Cleaner (native Android, Kotlin + Jetpack Compose)
+# Cloneout: Duplicate Cleaner (native Android, Kotlin + Jetpack Compose)
 
 Scans shared storage for byte-identical files of **any type** (photos, videos, audio,
 documents, downloads, archives…) and lets you delete the extras. Detection is by

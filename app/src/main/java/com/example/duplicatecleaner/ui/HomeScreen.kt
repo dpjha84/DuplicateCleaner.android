@@ -48,6 +48,7 @@ import com.example.duplicatecleaner.Tab
 import com.example.duplicatecleaner.UiState
 import com.example.duplicatecleaner.data.FileKind
 import com.example.duplicatecleaner.formatSize
+import com.example.duplicatecleaner.ui.theme.BrandIndigo
 
 @Composable
 fun HomeScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit) {
@@ -80,8 +81,9 @@ fun HomeScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit) {
                     enabled = state.scanKinds.isNotEmpty(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        disabledContainerColor = Color.White.copy(alpha = 0.4f)
+                        contentColor = BrandIndigo,
+                        disabledContainerColor = Color.White.copy(alpha = 0.4f),
+                        disabledContentColor = BrandIndigo.copy(alpha = 0.5f)
                     ),
                     modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {

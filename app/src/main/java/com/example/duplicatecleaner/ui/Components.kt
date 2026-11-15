@@ -2,6 +2,7 @@ package com.example.duplicatecleaner.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -198,7 +199,10 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun AppMark(size: Dp, modifier: Modifier = Modifier) {
     Box(
-        modifier.size(size).clip(RoundedCornerShape(size * 0.28f)),
+        modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.28f))
+            .border(1.5.dp, Color.White.copy(alpha = 0.55f), RoundedCornerShape(size * 0.28f)),
         contentAlignment = Alignment.Center
     ) {
         Image(painterResource(R.drawable.ic_launcher_background), null, Modifier.fillMaxSize())
@@ -227,13 +231,16 @@ fun StatCard(value: String, label: String, icon: ImageVector, modifier: Modifier
         modifier,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
             IconCircle(icon, size = 38.dp)
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(value, style = MaterialTheme.typography.titleMedium)
-                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Spacer(Modifier.height(12.dp))
+            Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 1)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
         }
     }
 }

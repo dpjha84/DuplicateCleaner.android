@@ -1,8 +1,8 @@
-# Privacy Policy: Duplicate Cleaner
+# Privacy Policy: Cloneout
 
 _Last updated: [DATE]_
 
-Duplicate Cleaner ("the app") is published by [YOUR NAME OR COMPANY] ("we"). Contact: [CONTACT EMAIL].
+Cloneout: Duplicate Cleaner ("the app") is published by [YOUR NAME OR COMPANY] ("we"). Contact: [CONTACT EMAIL].
 
 > Draft for you to review and adjust. Replace the bracketed items, host this page at a public URL
 > (for example GitHub Pages), and enter that URL in Play Console. It is not legal advice.

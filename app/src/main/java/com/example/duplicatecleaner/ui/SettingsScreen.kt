@@ -201,13 +201,15 @@ private fun PlanCard(state: UiState, pro: ProActions) {
                 Spacer(Modifier.width(8.dp))
                 Text(state.proPrice?.let { "Unlock Pro · $it" } ?: "Unlock Pro")
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(onClick = pro.watchAd, enabled = state.rewardReady, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Rounded.PlayCircle, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("+500 MB")
+                    Text("+500 MB", maxLines = 1)
                 }
-                TextButton(onClick = pro.restore) { Text("Restore purchase") }
+                TextButton(onClick = pro.restore, modifier = Modifier.weight(1f)) {
+                    Text("Restore purchase", maxLines = 1)
+                }
             }
         }
     }
