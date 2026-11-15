@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.data
+package com.dpjha.cloneout.data
 
 import java.util.Random
 import kotlin.math.abs

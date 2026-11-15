@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalLayoutApi::class)
 
-package com.example.duplicatecleaner.ui
+package com.dpjha.cloneout.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -45,12 +45,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.duplicatecleaner.MainViewModel
-import com.example.duplicatecleaner.Tab
-import com.example.duplicatecleaner.UiState
-import com.example.duplicatecleaner.data.FileKind
-import com.example.duplicatecleaner.formatSize
-import com.example.duplicatecleaner.ui.theme.BrandIndigo
+import com.dpjha.cloneout.MainViewModel
+import com.dpjha.cloneout.Tab
+import com.dpjha.cloneout.UiState
+import com.dpjha.cloneout.data.FileKind
+import com.dpjha.cloneout.formatSize
+import com.dpjha.cloneout.ui.theme.BrandIndigo
 
 @Composable
 fun HomeScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit) {

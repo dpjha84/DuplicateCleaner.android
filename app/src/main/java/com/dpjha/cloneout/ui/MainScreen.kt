@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.ui
+package com.dpjha.cloneout.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -23,11 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.example.duplicatecleaner.MainViewModel
-import com.example.duplicatecleaner.Phase
-import com.example.duplicatecleaner.SnackAction
-import com.example.duplicatecleaner.Tab
-import com.example.duplicatecleaner.UiState
+import com.dpjha.cloneout.MainViewModel
+import com.dpjha.cloneout.Phase
+import com.dpjha.cloneout.SnackAction
+import com.dpjha.cloneout.Tab
+import com.dpjha.cloneout.UiState
 
 @Composable
 fun MainScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit, pro: ProActions) {

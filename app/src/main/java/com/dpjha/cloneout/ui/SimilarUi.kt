@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.ui
+package com.dpjha.cloneout.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,14 +63,14 @@ import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.example.duplicatecleaner.FREE_SIMILAR_GROUPS
-import com.example.duplicatecleaner.MainViewModel
-import com.example.duplicatecleaner.UiState
-import com.example.duplicatecleaner.data.FileKind
-import com.example.duplicatecleaner.data.Sensitivity
-import com.example.duplicatecleaner.data.SimilarGroup
-import com.example.duplicatecleaner.data.SimilarPhoto
-import com.example.duplicatecleaner.formatSize
+import com.dpjha.cloneout.FREE_SIMILAR_GROUPS
+import com.dpjha.cloneout.MainViewModel
+import com.dpjha.cloneout.UiState
+import com.dpjha.cloneout.data.FileKind
+import com.dpjha.cloneout.data.Sensitivity
+import com.dpjha.cloneout.data.SimilarGroup
+import com.dpjha.cloneout.data.SimilarPhoto
+import com.dpjha.cloneout.formatSize
 import java.io.File
 
 /** Everything the Similar tab shows, as items of the results list. */

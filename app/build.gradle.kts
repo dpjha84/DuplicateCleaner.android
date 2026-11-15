@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.duplicatecleaner"
-    compileSdk = 34
+    namespace = "com.dpjha.cloneout"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.duplicatecleaner"
+        applicationId = "com.dpjha.cloneout"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         // Play Store needs a higher versionCode for every upload; CI uses the run number.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "1.0"
@@ -98,5 +98,6 @@ dependencies {
     implementation("io.coil-kt:coil-video:2.6.0")
     implementation("com.android.billingclient:billing-ktx:7.1.1")
     implementation("com.google.android.gms:play-services-ads:23.3.0")
+    implementation("com.google.android.ump:user-messaging-platform:3.0.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

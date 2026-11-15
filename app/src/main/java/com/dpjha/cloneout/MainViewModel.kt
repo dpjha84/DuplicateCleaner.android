@@ -1,30 +1,30 @@
-package com.example.duplicatecleaner
+package com.dpjha.cloneout
 
 import android.app.Activity
 import android.app.Application
 import android.media.MediaScannerConnection
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.duplicatecleaner.ads.AdManager
-import com.example.duplicatecleaner.billing.BillingManager
-import com.example.duplicatecleaner.billing.Entitlements
-import com.example.duplicatecleaner.data.CleanMode
-import com.example.duplicatecleaner.data.DuplicateGroup
-import com.example.duplicatecleaner.data.DuplicateScanner
-import com.example.duplicatecleaner.data.FileKind
-import com.example.duplicatecleaner.data.MediaFile
-import com.example.duplicatecleaner.data.Prefs
-import com.example.duplicatecleaner.data.ScanProgress
-import com.example.duplicatecleaner.data.Sensitivity
-import com.example.duplicatecleaner.data.SimilarCandidate
-import com.example.duplicatecleaner.data.SimilarGrouper
-import com.example.duplicatecleaner.data.SimilarGroup
-import com.example.duplicatecleaner.data.SimilarPhoto
-import com.example.duplicatecleaner.data.SimilarPhotoScanner
-import com.example.duplicatecleaner.data.SmartChoice
-import com.example.duplicatecleaner.data.SmartKeeper
-import com.example.duplicatecleaner.data.ThemeMode
-import com.example.duplicatecleaner.data.Trash
+import com.dpjha.cloneout.ads.AdManager
+import com.dpjha.cloneout.billing.BillingManager
+import com.dpjha.cloneout.billing.Entitlements
+import com.dpjha.cloneout.data.CleanMode
+import com.dpjha.cloneout.data.DuplicateGroup
+import com.dpjha.cloneout.data.DuplicateScanner
+import com.dpjha.cloneout.data.FileKind
+import com.dpjha.cloneout.data.MediaFile
+import com.dpjha.cloneout.data.Prefs
+import com.dpjha.cloneout.data.ScanProgress
+import com.dpjha.cloneout.data.Sensitivity
+import com.dpjha.cloneout.data.SimilarCandidate
+import com.dpjha.cloneout.data.SimilarGrouper
+import com.dpjha.cloneout.data.SimilarGroup
+import com.dpjha.cloneout.data.SimilarPhoto
+import com.dpjha.cloneout.data.SimilarPhotoScanner
+import com.dpjha.cloneout.data.SmartChoice
+import com.dpjha.cloneout.data.SmartKeeper
+import com.dpjha.cloneout.data.ThemeMode
+import com.dpjha.cloneout.data.Trash
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -207,6 +207,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private val entitlements = Entitlements(app)
     private val billing = BillingManager(app, entitlements)
     private val ads = AdManager(app)
+
+    /** Called once the consent flow says ads may be requested. */
+    fun startAds() = ads.init()
     private val prefs = Prefs(app)
 
     private val _state = MutableStateFlow(
@@ -239,7 +242,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     init {
         refreshTrash()
         billing.connect()
-        ads.init()
 
         viewModelScope.launch {
             billing.isPro.collect { pro ->

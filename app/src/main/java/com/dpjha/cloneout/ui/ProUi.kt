@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.ui
+package com.dpjha.cloneout.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,10 +28,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
-import com.example.duplicatecleaner.BuildConfig
-import com.example.duplicatecleaner.UiState
-import com.example.duplicatecleaner.billing.Entitlements
-import com.example.duplicatecleaner.formatSize
+import com.dpjha.cloneout.BuildConfig
+import com.dpjha.cloneout.UiState
+import com.dpjha.cloneout.billing.Entitlements
+import com.dpjha.cloneout.formatSize
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView

@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalLayoutApi::class)
 
-package com.example.duplicatecleaner.ui
+package com.dpjha.cloneout.ui
 
 import android.content.Intent
 import android.net.Uri
@@ -49,12 +49,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.duplicatecleaner.BuildConfig
-import com.example.duplicatecleaner.MainViewModel
-import com.example.duplicatecleaner.UiState
-import com.example.duplicatecleaner.data.CleanMode
-import com.example.duplicatecleaner.data.ThemeMode
-import com.example.duplicatecleaner.formatSize
+import com.dpjha.cloneout.BuildConfig
+import com.dpjha.cloneout.MainViewModel
+import com.dpjha.cloneout.UiState
+import com.dpjha.cloneout.data.CleanMode
+import com.dpjha.cloneout.data.ThemeMode
+import com.dpjha.cloneout.formatSize
 
 @Composable
 fun SettingsScreen(state: UiState, vm: MainViewModel, pro: ProActions) {
@@ -135,6 +135,21 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, pro: ProActions) {
                     Icon(Icons.Rounded.PrivacyTip, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(12.dp))
                     Text("Privacy policy", Modifier.weight(1f))
+                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null)
+                }
+            }
+            val activity = context as? android.app.Activity
+            if (activity != null && !state.isPro && com.dpjha.cloneout.ads.ConsentManager.privacyOptionsRequired(activity)) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { com.dpjha.cloneout.ads.ConsentManager.showPrivacyOptions(activity) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.PrivacyTip, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Ad privacy choices", Modifier.weight(1f))
                     Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null)
                 }
             }

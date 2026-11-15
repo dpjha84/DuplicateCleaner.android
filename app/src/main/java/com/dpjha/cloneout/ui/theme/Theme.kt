@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.ui.theme
+package com.dpjha.cloneout.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -22,7 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.example.duplicatecleaner.data.ThemeMode
+import com.dpjha.cloneout.data.ThemeMode
 
 // Brand: indigo -> violet, with a teal accent that matches the app icon.
 val BrandIndigo = Color(0xFF4F46E5)

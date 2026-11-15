@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 
-package com.example.duplicatecleaner.ui
+package com.dpjha.cloneout.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -75,16 +75,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
-import com.example.duplicatecleaner.KeepRule
-import com.example.duplicatecleaner.MainViewModel
-import com.example.duplicatecleaner.ResultsTab
-import com.example.duplicatecleaner.UiState
-import com.example.duplicatecleaner.data.CleanMode
-import com.example.duplicatecleaner.data.DuplicateGroup
-import com.example.duplicatecleaner.data.FileKind
-import com.example.duplicatecleaner.data.MediaFile
-import com.example.duplicatecleaner.folderStats
-import com.example.duplicatecleaner.formatSize
+import com.dpjha.cloneout.KeepRule
+import com.dpjha.cloneout.MainViewModel
+import com.dpjha.cloneout.ResultsTab
+import com.dpjha.cloneout.UiState
+import com.dpjha.cloneout.data.CleanMode
+import com.dpjha.cloneout.data.DuplicateGroup
+import com.dpjha.cloneout.data.FileKind
+import com.dpjha.cloneout.data.MediaFile
+import com.dpjha.cloneout.folderStats
+import com.dpjha.cloneout.formatSize
 
 @Composable
 fun ResultsScreen(
@@ -611,7 +611,7 @@ private fun FileRow(
 }
 
 @Composable
-private fun BottomBar(state: UiState, summary: com.example.duplicatecleaner.SelectionSummary, onClean: () -> Unit) {
+private fun BottomBar(state: UiState, summary: com.dpjha.cloneout.SelectionSummary, onClean: () -> Unit) {
     val fits = state.fits(summary.bytes)
     Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
         Column {

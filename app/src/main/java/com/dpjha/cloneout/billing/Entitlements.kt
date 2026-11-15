@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.billing
+package com.dpjha.cloneout.billing
 
 import android.content.Context
 import android.os.Environment

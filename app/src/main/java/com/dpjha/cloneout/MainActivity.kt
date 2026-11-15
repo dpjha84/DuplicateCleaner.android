@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner
+package com.dpjha.cloneout
 
 import android.Manifest
 import android.content.Intent
@@ -20,9 +20,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.example.duplicatecleaner.ui.MainScreen
-import com.example.duplicatecleaner.ui.ProActions
-import com.example.duplicatecleaner.ui.theme.AppTheme
+import com.dpjha.cloneout.ads.ConsentManager
+import com.dpjha.cloneout.ui.MainScreen
+import com.dpjha.cloneout.ui.ProActions
+import com.dpjha.cloneout.ui.theme.AppTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        ConsentManager.gather(this) { viewModel.startAds() }
         setContent {
             val state by viewModel.state.collectAsState()
             AppTheme(state.themeMode, state.dynamicColor) {

@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.ui
+package com.dpjha.cloneout.ui
 
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -70,9 +70,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import coil.ImageLoader
 import coil.compose.AsyncImage
-import com.example.duplicatecleaner.data.FileKind
-import com.example.duplicatecleaner.data.MediaFile
-import com.example.duplicatecleaner.formatSize
+import com.dpjha.cloneout.data.FileKind
+import com.dpjha.cloneout.data.MediaFile
+import com.dpjha.cloneout.formatSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File

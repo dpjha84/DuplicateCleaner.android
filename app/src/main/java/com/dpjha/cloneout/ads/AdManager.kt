@@ -1,8 +1,8 @@
-package com.example.duplicatecleaner.ads
+package com.dpjha.cloneout.ads
 
 import android.app.Activity
 import android.app.Application
-import com.example.duplicatecleaner.BuildConfig
+import com.dpjha.cloneout.BuildConfig
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
@@ -23,7 +23,12 @@ class AdManager(private val app: Application) {
     private val _rewardReady = MutableStateFlow(false)
     val rewardReady: StateFlow<Boolean> = _rewardReady.asStateFlow()
 
+    private var started = false
+
+    /** Call only once consent allows ads (see ConsentManager). Safe to call repeatedly. */
     fun init() {
+        if (started) return
+        started = true
         MobileAds.initialize(app) { loadRewarded() }
     }
 

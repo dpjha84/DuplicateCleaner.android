@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.ui
+package com.dpjha.cloneout.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -53,10 +53,10 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
-import com.example.duplicatecleaner.R
-import com.example.duplicatecleaner.data.FileKind
-import com.example.duplicatecleaner.data.MediaFile
-import com.example.duplicatecleaner.ui.theme.brandGradient
+import com.dpjha.cloneout.R
+import com.dpjha.cloneout.data.FileKind
+import com.dpjha.cloneout.data.MediaFile
+import com.dpjha.cloneout.ui.theme.brandGradient
 import java.io.File
 
 // ---- File kinds: one label, icon and colour everywhere ----

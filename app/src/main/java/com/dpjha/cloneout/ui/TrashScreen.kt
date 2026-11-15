@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-package com.example.duplicatecleaner.ui
+package com.dpjha.cloneout.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,10 +48,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
-import com.example.duplicatecleaner.MainViewModel
-import com.example.duplicatecleaner.UiState
-import com.example.duplicatecleaner.data.MediaFile
-import com.example.duplicatecleaner.formatSize
+import com.dpjha.cloneout.MainViewModel
+import com.dpjha.cloneout.UiState
+import com.dpjha.cloneout.data.MediaFile
+import com.dpjha.cloneout.formatSize
 
 private enum class TrashConfirm { DELETE_SELECTED, EMPTY_ALL }
 

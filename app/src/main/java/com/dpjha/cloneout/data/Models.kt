@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.data
+package com.dpjha.cloneout.data
 
 enum class FileKind { IMAGE, VIDEO, AUDIO, DOCUMENT, ARCHIVE, APP, OTHER }
 

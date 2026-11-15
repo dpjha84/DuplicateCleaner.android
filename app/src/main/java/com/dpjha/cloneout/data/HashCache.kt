@@ -1,4 +1,4 @@
-package com.example.duplicatecleaner.data
+package com.dpjha.cloneout.data
 
 import android.content.ContentValues
 import android.content.Context

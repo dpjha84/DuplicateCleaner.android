@@ -44,3 +44,15 @@ will never show a price. To test the paywall end to end:
 2. Upload the AAB to an **Internal testing** track and add your Google account under Setup > License testing.
 3. Install from the internal testing opt-in link (not the APK) with that account, on a phone with Play Store.
 4. The price now loads; purchases by licensed testers are free and can be refunded/cleared.
+
+
+## Status (latest build)
+- [x] Package ID `com.dpjha.cloneout` (permanent once uploaded)
+- [x] Target/compile SDK 36 (Play requires API 36 for new apps and updates from 31 Aug 2026); AGP 8.9.1, Gradle 8.11.1
+- [x] AdMob consent (Google UMP) before any ad request; "Ad privacy choices" row appears in Settings where required
+- [x] Signed AAB from CI, splash screen, icon, feature graphic, listing text in `docs/store/LISTING.md`
+- [ ] Real AdMob IDs in GitHub secrets (ADMOB_APP_ID, ADMOB_BANNER_ID, ADMOB_REWARDED_ID); set up the UMP message in AdMob > Privacy & messaging
+- [ ] `PRIVACY_URL` secret/env set to the hosted policy
+- [ ] `pro_unlock` in-app product created and active
+- [ ] All files access declaration (see `ALL_FILES_ACCESS_DECLARATION.md`), Data safety, content rating
+- [ ] Phone screenshots; closed test with 12+ testers for 14 days if your account is a new personal one
