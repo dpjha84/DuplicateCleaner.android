@@ -72,9 +72,11 @@ class HashCache(context: Context) :
                     v.put("h", s.height)
                 } else {
                     v.putNull("bits")
-                    v.put("color", 0L)
-                    v.put("w", 0)
-                    v.put("h", 0)
+                    val zeroLong: Long = 0L
+                    val zeroInt: Int = 0
+                    v.put("color", zeroLong)
+                    v.put("w", zeroInt)
+                    v.put("h", zeroInt)
                 }
                 db.insertWithOnConflict("sig", null, v, SQLiteDatabase.CONFLICT_REPLACE)
             }

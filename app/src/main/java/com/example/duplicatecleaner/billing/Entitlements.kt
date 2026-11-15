@@ -76,15 +76,18 @@ class Entitlements(context: Context) {
         null
     }
 
-    private fun readMarker(): Pair<Long, Long>? = try {
-        val text = markerFile()?.takeIf { it.isFile }?.readText()?.trim() ?: return null
-        val parts = text.split('|')
-        if (parts.size != 4 || parts[0] != "v1") return null
-        val used = parts[1].toLong()
-        val bonus = parts[2].toLong()
-        if (used < 0 || bonus < 0 || !sign(used, bonus).equals(parts[3], ignoreCase = true)) null else used to bonus
-    } catch (e: Exception) {
-        null
+    private fun readMarker(): Pair<Long, Long>? {
+        try {
+            val text = markerFile()?.takeIf { it.isFile }?.readText()?.trim() ?: return null
+            val parts = text.split('|')
+            if (parts.size != 4 || parts[0] != "v1") return null
+            val used = parts[1].toLong()
+            val bonus = parts[2].toLong()
+            if (used < 0 || bonus < 0 || !sign(used, bonus).equals(parts[3], ignoreCase = true)) return null
+            return used to bonus
+        } catch (e: Exception) {
+            return null
+        }
     }
 
     private fun writeMarker() {
