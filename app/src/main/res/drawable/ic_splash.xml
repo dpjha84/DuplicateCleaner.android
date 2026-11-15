@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Splash mark: self-contained white badge so it stays visible on the indigo splash background. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M54,54m-34,0a34,34 0,1 1,68 0a34,34 0,1 1,-68 0"/>
+    <group android:scaleX="0.62" android:scaleY="0.62" android:pivotX="52" android:pivotY="52">
+        <path android:fillColor="#664F46E5"
+            android:pathData="M30,28h24l10,10v30a4,4 0,0 1,-4,4h-30a4,4 0,0 1,-4,-4v-36a4,4 0,0 1,4,-4z"/>
+        <path android:fillColor="#FF4F46E5"
+            android:pathData="M44,38h24l10,10v30a4,4 0,0 1,-4,4h-30a4,4 0,0 1,-4,-4v-36a4,4 0,0 1,4,-4z"/>
+        <path android:name="check" android:strokeColor="#FFFFFFFF" android:strokeWidth="5"
+            android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M50,64l6,6l11,-12"/>
+    </group>
+</vector>

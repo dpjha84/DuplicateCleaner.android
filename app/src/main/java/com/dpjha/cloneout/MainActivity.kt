@@ -33,7 +33,14 @@ class MainActivity : ComponentActivity() {
     private var scanAfterSettings = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        installSplashScreen().setOnExitAnimationListener { splash ->
+            // Fade and gently grow the splash away instead of cutting to the app.
+            splash.view.animate()
+                .alpha(0f).scaleX(1.06f).scaleY(1.06f)
+                .setDuration(220)
+                .withEndAction { splash.remove() }
+                .start()
+        }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         ConsentManager.gather(this) { viewModel.startAds() }
