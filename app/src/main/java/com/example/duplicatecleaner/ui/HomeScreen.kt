@@ -122,27 +122,25 @@ fun HomeScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit) {
         }
 
         // Similar photos
-        val photosOn = FileKind.IMAGE in state.scanKinds
-        Card(
-            Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-        ) {
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconCircle(Icons.Rounded.PhotoLibrary)
-                Spacer(Modifier.width(14.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Similar photos", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "Edits, bursts and resized copies",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        // Only relevant when photos are being scanned.
+        if (FileKind.IMAGE in state.scanKinds) {
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            ) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconCircle(Icons.Rounded.PhotoLibrary)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Similar photos", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Edits, bursts and resized copies",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = state.scanSimilar, onCheckedChange = vm::setScanSimilar)
                 }
-                Switch(
-                    checked = photosOn && state.scanSimilar,
-                    onCheckedChange = vm::setScanSimilar,
-                    enabled = photosOn
-                )
             }
         }
 

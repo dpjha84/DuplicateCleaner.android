@@ -104,8 +104,10 @@ Signing when you create the app in Play Console.
 - Method: 512-bit brightness-gradient fingerprint per photo (17x17 grid) + a hue fingerprint and aspect check,
   matched with locality-sensitive hashing. About 100k photos group in about a second; fingerprints are cached
   in a local SQLite file, so rescans only decode new or changed photos.
-- Monetization: finding and previewing similar photos is free; cleaning them is a Pro feature (the free
-  allowance and rewarded ads only apply to exact duplicates).
+- Monetization: cleaning similar photos is a Pro feature (the free allowance and rewarded ads only apply to
+  exact duplicates). Free users get a taste: the first `FREE_SIMILAR_GROUPS` (3, in `MainViewModel.kt`) groups
+  are shown in full with keep/clean marks; the rest appear as blurred, locked teaser cards under an
+  "Unlock to see N more groups" banner that opens the paywall.
 - Safety: the best photo (highest resolution, then largest, then oldest) is kept by default, every other
   photo goes to Trash (restorable). Match level (Strict / Balanced / Loose) re-groups instantly.
 - Known limits: crops, large camera shifts and photos taken seconds apart from different angles are not matched

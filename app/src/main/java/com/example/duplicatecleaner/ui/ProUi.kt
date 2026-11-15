@@ -91,11 +91,20 @@ fun PaywallDialog(state: UiState, selectedBytes: Long, actions: ProActions) {
                     Perk("One payment, no subscription")
                     Perk("Restore on any device")
                     Spacer(Modifier.height(4.dp))
+                    // Stays tappable when the store can't be reached: a tap retries and explains why.
                     Button(
                         onClick = actions.buy,
-                        enabled = state.proPrice != null,
+                        enabled = state.proPrice != null || state.storeUnavailable,
                         modifier = Modifier.fillMaxWidth().height(50.dp)
-                    ) { Text(state.proPrice?.let { "Unlock Pro · $it" } ?: "Loading price…") }
+                    ) {
+                        Text(
+                            when {
+                                state.proPrice != null -> "Unlock Pro · ${state.proPrice}"
+                                state.storeUnavailable -> "Store unavailable · Retry"
+                                else -> "Loading price…"
+                            }
+                        )
+                    }
                     // Ads and the free allowance only apply to exact duplicates.
                     if (!state.similarLocked) OutlinedButton(
                         onClick = actions.watchAd,
@@ -112,8 +121,8 @@ fun PaywallDialog(state: UiState, selectedBytes: Long, actions: ProActions) {
                         }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        TextButton(onClick = actions.restore) { Text("Restore purchase") }
-                        TextButton(onClick = actions.closePaywall) { Text("Not now") }
+                        TextButton(onClick = actions.restore) { Text("Restore purchase", maxLines = 1) }
+                        TextButton(onClick = actions.closePaywall) { Text("Not now", maxLines = 1, softWrap = false) }
                     }
                 }
             }

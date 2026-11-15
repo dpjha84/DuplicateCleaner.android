@@ -37,6 +37,9 @@ import kotlinx.coroutines.withContext
 
 enum class Phase { IDLE, SCANNING, RESULTS }
 
+/** Free users see this many similar-photo groups in full; the rest are blurred teasers. Tune freely. */
+const val FREE_SIMILAR_GROUPS = 3
+
 enum class Tab { HOME, TRASH, SETTINGS }
 
 /** The two kinds of results: identical files and similar-looking photos. */
@@ -106,6 +109,8 @@ data class UiState(
 
     // Monetization
     val isPro: Boolean = false,
+    /** Play Billing could not provide the Pro product (e.g. a sideloaded build). */
+    val storeUnavailable: Boolean = false,
     val freeRemaining: Long = Entitlements.FREE_BYTES,
     val freeTotal: Long = Entitlements.FREE_BYTES,
     val proPrice: String? = null,
@@ -242,6 +247,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             }
         }
         viewModelScope.launch { billing.price.collect { p -> _state.update { it.copy(proPrice = p) } } }
+        viewModelScope.launch { billing.storeUnavailable.collect { u -> _state.update { it.copy(storeUnavailable = u) } } }
         viewModelScope.launch { billing.events.collect { m -> toast(m) } }
         viewModelScope.launch { ads.rewardReady.collect { r -> _state.update { it.copy(rewardReady = r) } } }
     }
@@ -290,7 +296,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     fun toggleKind(kind: FileKind) {
         val next = _state.value.scanKinds.let { if (kind in it) it - kind else it + kind }
         prefs.scanKinds = next
-        _state.update { it.copy(scanKinds = next) }
+        // Choosing Photos switches similar-photo matching on, so users get a taste of it by default.
+        val similarOn = if (kind == FileKind.IMAGE && kind in next) true else _state.value.scanSimilar
+        prefs.scanSimilar = similarOn
+        _state.update { it.copy(scanKinds = next, scanSimilar = similarOn) }
     }
 
     fun setScanSimilar(on: Boolean) {

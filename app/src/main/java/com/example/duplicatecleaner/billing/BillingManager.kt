@@ -35,6 +35,10 @@ class BillingManager(
     private val _price = MutableStateFlow<String?>(null)
     val price: StateFlow<String?> = _price.asStateFlow()
 
+    /** True when Play could not give us the product (not installed from Play, product missing, no store). */
+    private val _unavailable = MutableStateFlow(false)
+    val storeUnavailable: StateFlow<Boolean> = _unavailable.asStateFlow()
+
     private val _events = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val events: SharedFlow<String> = _events.asSharedFlow()
 
@@ -58,6 +62,8 @@ class BillingManager(
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                     loadProduct()
                     refresh()
+                } else {
+                    _unavailable.value = true
                 }
             }
 
@@ -82,6 +88,9 @@ class BillingManager(
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                 productDetails = details.firstOrNull()
                 _price.value = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice
+                _unavailable.value = productDetails == null
+            } else {
+                _unavailable.value = true
             }
         }
     }
@@ -107,7 +116,10 @@ class BillingManager(
     fun launchPurchase(activity: Activity) {
         val details = productDetails
         if (!client.isReady || details == null) {
-            _events.tryEmit("Store isn't ready yet. Check your connection and try again.")
+            _events.tryEmit(
+                if (_unavailable.value) "Purchases work in the Play Store version of Cloneout. Install it from Google Play (or the testing link) and try again."
+                else "Store isn't ready yet. Check your connection and try again."
+            )
             connect()
             return
         }

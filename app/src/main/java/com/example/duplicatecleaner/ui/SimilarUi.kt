@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DoneAll
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PhotoLibrary
@@ -62,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.duplicatecleaner.FREE_SIMILAR_GROUPS
 import com.example.duplicatecleaner.MainViewModel
 import com.example.duplicatecleaner.UiState
 import com.example.duplicatecleaner.data.FileKind
@@ -109,8 +111,37 @@ fun LazyListScope.similarItems(
             }
         }
     }
-    items(state.similarGroups, key = { it.bestPath }) { group ->
-        SimilarGroupCard(group, state.similarSelected, imageLoader, vm, onPreview)
+    // Free users get a full taste of the first few groups; the rest are blurred teasers.
+    val visibleFull = if (state.isPro) state.similarGroups.size else minOf(FREE_SIMILAR_GROUPS, state.similarGroups.size)
+    items(state.similarGroups.take(visibleFull), key = { it.bestPath }) { group ->
+        SimilarGroupCard(group, state.similarSelected, imageLoader, vm, locked = false, onPreview = onPreview, onLocked = pro.openPaywall)
+    }
+    val lockedGroups = state.similarGroups.drop(visibleFull)
+    if (lockedGroups.isNotEmpty()) {
+        item(key = "similar-unlock") { UnlockBanner(lockedGroups.size, pro.openPaywall) }
+        items(lockedGroups, key = { it.bestPath }) { group ->
+            SimilarGroupCard(group, state.similarSelected, imageLoader, vm, locked = true, onPreview = onPreview, onLocked = pro.openPaywall)
+        }
+    }
+}
+
+@Composable
+private fun UnlockBanner(hidden: Int, onClick: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Lock, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                if (hidden == 1) "Unlock to see 1 more group" else "Unlock to see $hidden more groups",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 
@@ -165,7 +196,9 @@ private fun SimilarGroupCard(
     selected: Set<String>,
     imageLoader: ImageLoader,
     vm: MainViewModel,
-    onPreview: (String) -> Unit
+    locked: Boolean,
+    onPreview: (String) -> Unit,
+    onLocked: () -> Unit
 ) {
     var menu by remember { mutableStateOf(false) }
     Card(
@@ -175,19 +208,25 @@ private fun SimilarGroupCard(
     ) {
         Column(Modifier.padding(vertical = 8.dp)) {
             Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(20.dp), tint = FileKind.IMAGE.tint)
+                if (locked) {
+                    Icon(Icons.Rounded.Lock, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(20.dp), tint = FileKind.IMAGE.tint)
+                }
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text("${group.photos.size} similar photos", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        group.reason,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (!locked) {
+                        Text(
+                            group.reason,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-                Box {
+                if (locked) Spacer(Modifier.height(48.dp)) else Box {
                     IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "Group options") }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(
@@ -211,10 +250,11 @@ private fun SimilarGroupCard(
                 itemsIndexed(group.photos, key = { _, p -> p.file.path }) { index, photo ->
                     PhotoTile(
                         photo = photo,
-                        isBest = index == 0,
-                        remove = photo.file.path in selected,
+                        isBest = !locked && index == 0,
+                        remove = !locked && photo.file.path in selected,
+                        locked = locked,
                         imageLoader = imageLoader,
-                        onOpen = { onPreview(photo.file.path) },
+                        onOpen = { if (locked) onLocked() else onPreview(photo.file.path) },
                         onToggle = { vm.toggleSimilar(photo.file) }
                     )
                 }
@@ -228,6 +268,7 @@ private fun PhotoTile(
     photo: SimilarPhoto,
     isBest: Boolean,
     remove: Boolean,
+    locked: Boolean,
     imageLoader: ImageLoader,
     onOpen: () -> Unit,
     onToggle: () -> Unit
@@ -247,12 +288,24 @@ private fun PhotoTile(
             .then(if (remove) Modifier.border(2.dp, scheme.error, shape) else Modifier)
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(context).data(File(photo.file.path)).size(px).crossfade(true).build(),
+            // Locked tiles decode a ~10 px thumbnail and stretch it: a blur on every Android version,
+            // and the real picture never reaches the screen.
+            model = ImageRequest.Builder(context).data(File(photo.file.path))
+                .size(if (locked) 10 else px).crossfade(true).build(),
             imageLoader = imageLoader,
-            contentDescription = photo.file.name,
+            contentDescription = if (locked) null else photo.file.name,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().alpha(if (remove) 0.55f else 1f)
         )
+        if (locked) {
+            Box(
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Rounded.Lock, null, tint = Color.White, modifier = Modifier.size(28.dp))
+            }
+            return@Box
+        }
         Box(
             Modifier
                 .align(Alignment.BottomStart)

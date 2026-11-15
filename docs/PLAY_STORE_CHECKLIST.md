@@ -36,3 +36,11 @@
 - Launcher label: `Cloneout`
 - Short description: "Find and remove duplicate photos, videos and files, safely."
 - Check the name is free on Play, as a domain and as a trademark before publishing.
+
+## Testing purchases (why the Pro button says "Loading price…" or "Store unavailable")
+Play Billing only returns products to an app installed from Google Play. A sideloaded APK from GitHub Actions
+will never show a price. To test the paywall end to end:
+1. Create the in-app product `pro_unlock` (one-time) in Play Console and set it to **Active**.
+2. Upload the AAB to an **Internal testing** track and add your Google account under Setup > License testing.
+3. Install from the internal testing opt-in link (not the APK) with that account, on a phone with Play Store.
+4. The price now loads; purchases by licensed testers are free and can be refunded/cleared.

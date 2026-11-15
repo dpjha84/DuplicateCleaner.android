@@ -19,6 +19,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.duplicatecleaner.ui.MainScreen
 import com.example.duplicatecleaner.ui.ProActions
 import com.example.duplicatecleaner.ui.theme.AppTheme
@@ -31,6 +32,7 @@ class MainActivity : ComponentActivity() {
     private var scanAfterSettings = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
