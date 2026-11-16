@@ -112,7 +112,7 @@ class Entitlements(context: Context) {
 
     companion object {
         const val FREE_BYTES = 500L shl 20      // 500 MB
-        const val REWARD_BYTES = 500L shl 20    // 500 MB per rewarded ad
+        const val REWARD_BYTES = 100L shl 20    // 100 MB per rewarded ad
         private const val KEY_PRO = "pro"
         private const val KEY_USED = "used_bytes"
         private const val KEY_BONUS = "bonus_bytes"

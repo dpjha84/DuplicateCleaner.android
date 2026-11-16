@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -217,10 +218,20 @@ private fun PlanCard(state: UiState, pro: ProActions) {
                 Text(state.proPrice?.let { "Unlock Pro · $it" } ?: "Unlock Pro")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = pro.watchAd, enabled = state.rewardReady, modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = pro.watchAd,
+                    enabled = state.rewardReady,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                ) {
                     Icon(Icons.Rounded.PlayCircle, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("+500 MB", maxLines = 1)
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "+${com.dpjha.cloneout.billing.Entitlements.REWARD_BYTES shr 20} MB",
+                        maxLines = 1,
+                        softWrap = false,
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
                 TextButton(onClick = pro.restore, modifier = Modifier.weight(1f)) {
                     Text("Restore purchase", maxLines = 1)

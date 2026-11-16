@@ -23,7 +23,7 @@
 - [x] **EEA/UK users:** Google's consent form (UMP SDK) is included. Still create the consent message in AdMob > Privacy & messaging.
 
 ## Store listing: say what is true
-- Free scan, preview and trash. Free cleanup up to 500 MB (+500 MB per rewarded ad), cleaning similar photos is Pro only, then a **one-time** Pro unlock. No subscription.
+- Free scan, preview and trash. Free cleanup up to 500 MB (+100 MB per rewarded ad), cleaning similar photos is Pro only, then a **one-time** Pro unlock. No subscription.
 - Works on file *contents*, so renamed copies are found. Nothing is permanently deleted until you empty the trash.
 - No "boost", "RAM" or "junk" claims, and no fake alarms.
 

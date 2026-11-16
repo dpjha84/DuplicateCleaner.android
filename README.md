@@ -39,8 +39,8 @@ A pool of 2–4 workers is used (based on CPU cores) to speed things up without 
 phone. The app must stay open during a scan; there is no background service yet.
 
 ## Business model (freemium + light ads)
-- **Free:** unlimited scanning, previews and trash/restore, plus **500 MB of cleanup** (+500 MB per rewarded ad; similar-photo cleanup is Pro only).
-- **Rewarded ad:** +500 MB of free cleanup each time (free users only).
+- **Free:** unlimited scanning, previews and trash/restore, plus **500 MB of cleanup** (+100 MB per rewarded ad; similar-photo cleanup is Pro only).
+- **Rewarded ad:** +100 MB of free cleanup each time (free users only).
 - **Pro, one-time in-app purchase** (`pro_unlock`): unlimited cleanup, no ads. No subscription.
 - **Ads:** one banner on the results list and the rewarded ad. Never during scanning, previews or deleting.
 - Tune `Entitlements.FREE_BYTES` / `REWARD_BYTES` in `billing/Entitlements.kt`.
