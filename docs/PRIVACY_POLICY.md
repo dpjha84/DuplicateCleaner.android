@@ -2,7 +2,10 @@
 
 _Last updated: 16 November 2026_
 
-Cloneout: Duplicate Cleaner ("the app") is published by Divya Prakash Jha ("we"). Contact: dpjha84@gmail.com.
+Cloneout: Duplicate Cleaner ("the app") is published by [YOUR NAME OR COMPANY] ("we"). Contact: [CONTACT EMAIL].
+
+> Draft for you to review and adjust. Replace the bracketed items, host this page at a public URL
+> (for example GitHub Pages), and enter that URL in Play Console. It is not legal advice.
 
 ## What the app does with your files
 The app scans the storage on your device to find identical files and visually similar photos. This happens **entirely on your device**.
@@ -49,7 +52,7 @@ knowingly collect personal information from children.
 
 ## Your choices
 You can uninstall the app at any time, revoke file access in Android settings, and delete the trash folder.
-For questions or requests about this policy, contact dpjha84@gmail.com.
+For questions or requests about this policy, contact [CONTACT EMAIL].
 
 ## Changes
 We may update this policy. The date above shows the latest version.

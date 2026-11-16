@@ -55,7 +55,9 @@ android {
         }
         release {
             signingConfig = signingConfigs.findByName("release")
-            isMinifyEnabled = true
+            // Code shrinking (R8) is off until a release build has been checked on a device;
+            // it is the usual cause of crashes that only happen in release builds.
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
