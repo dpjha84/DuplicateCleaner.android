@@ -84,9 +84,9 @@ class BillingManager(
                 )
             )
             .build()
-        client.queryProductDetailsAsync(params) { result, details ->
+        client.queryProductDetailsAsync(params) { result, queryResult ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                productDetails = details.firstOrNull()
+                productDetails = queryResult.productDetailsList.firstOrNull()
                 _price.value = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice
                 _unavailable.value = productDetails == null
             } else {
