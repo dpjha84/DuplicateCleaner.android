@@ -96,7 +96,7 @@ dependencies {
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-video:2.6.0")
-    implementation("com.android.billingclient:billing-ktx:8.3.0")
+    implementation("com.android.billingclient:billing:8.0.0")
     implementation("com.google.android.gms:play-services-ads:23.3.0")
     implementation("com.google.android.ump:user-messaging-platform:3.0.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
