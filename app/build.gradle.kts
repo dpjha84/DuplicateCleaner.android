@@ -21,14 +21,14 @@ android {
         buildConfigField("String", "PRIVACY_URL", "\"${System.getenv("PRIVACY_URL") ?: ""}\"")
 
         manifestPlaceholders["admobAppId"] =
-            System.getenv("ADMOB_APP_ID") ?: "ca-app-pub-3940256099942544~3347511713"
+            System.getenv("ADMOB_APP_ID")?.trim()?.takeIf { it.isNotEmpty() } ?: "ca-app-pub-3940256099942544~3347511713"
         buildConfigField(
             "String", "ADMOB_BANNER_ID",
-            "\"${System.getenv("ADMOB_BANNER_ID") ?: "ca-app-pub-3940256099942544/6300978111"}\""
+            "\"${System.getenv("ADMOB_BANNER_ID")?.trim()?.takeIf { it.isNotEmpty() } ?: "ca-app-pub-3940256099942544/6300978111"}\""
         )
         buildConfigField(
             "String", "ADMOB_REWARDED_ID",
-            "\"${System.getenv("ADMOB_REWARDED_ID") ?: "ca-app-pub-3940256099942544/5224354917"}\""
+            "\"${System.getenv("ADMOB_REWARDED_ID")?.trim()?.takeIf { it.isNotEmpty() } ?: "ca-app-pub-3940256099942544/5224354917"}\""
         )
     }
 
