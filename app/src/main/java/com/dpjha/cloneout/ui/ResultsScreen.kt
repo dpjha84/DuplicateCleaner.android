@@ -343,7 +343,10 @@ private fun ResultsTabs(state: UiState, vm: MainViewModel) {
             onClick = { vm.setResultsTab(ResultsTab.SIMILAR) },
             icon = {
                 if (state.similarRunning) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                else Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(20.dp))
+                else Icon(
+                    if (state.similarLocked) Icons.Rounded.Lock else Icons.Rounded.PhotoLibrary,
+                    null, Modifier.size(20.dp)
+                )
             },
             text = { Text(if (state.similarRunning) "Similar" else "Similar ${state.similarGroups.size}") }
         )
@@ -396,7 +399,7 @@ internal fun HeroSummary(state: UiState, totalReclaim: Long, subtitle: String, p
                 Text(
                     when {
                         state.isPro -> "Pro · unlimited cleanup"
-                        state.similarLocked -> "Pro unlocks cleaning similar photos"
+                        state.similarLocked -> "Free preview · Pro cleans similar photos"
                         else -> "Free cleanup left: ${formatSize(state.freeRemaining)}"
                     },
                     style = MaterialTheme.typography.labelLarge,
