@@ -22,6 +22,8 @@ jobs:
       ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
       ADMOB_BANNER_ID: ${{ secrets.ADMOB_BANNER_ID }}
       ADMOB_REWARDED_ID: ${{ secrets.ADMOB_REWARDED_ID }}
+      # Public privacy-policy URL shown in Settings (set as a repository variable or secret).
+      PRIVACY_URL: ${{ vars.PRIVACY_URL || secrets.PRIVACY_URL }}
     steps:
       - uses: actions/checkout@v4
 

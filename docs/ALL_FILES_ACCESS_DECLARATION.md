@@ -11,7 +11,7 @@ Copy and adjust. Keep the wording consistent with your store listing, because re
 File management (accessing, editing and maintaining files and folders outside app-specific storage).
 
 ## Why the permission is needed (draft)
-> Cloneout's core and only purpose is to find and remove identical files anywhere on the
+> Cloneout's core and only purpose is to find and remove identical files (and visually similar photos) anywhere on the
 > user's shared storage, across all file types (documents, downloads, archives, media). It must read
 > every user folder to compare file contents, and move the redundant copies into a recoverable trash
 > folder on the same storage. The Storage Access Framework cannot be used because it requires the user
@@ -22,13 +22,13 @@ File management (accessing, editing and maintaining files and folders outside ap
 ## What the app does with the access (draft)
 > Files are read locally to compute hashes. No file content, name or hash is uploaded or shared.
 > Nothing is deleted without the user's confirmation: selected duplicates are moved to a visible
-> "DuplicateCleaner Trash" folder and can be restored or permanently deleted by the user.
+> "Cloneout Trash" folder and can be restored or permanently deleted by the user.
 
 ## Demo video checklist (Play asks for one)
-1. Open the app, tap **Scan device**, show the system "All files access" screen and grant it.
+1. Open the app, tap **Scan now**, show the system "All files access" screen and grant it.
 2. Show the scan finishing and the duplicate groups.
-3. Open a preview, change the keep rule, tap **Move to trash**, confirm.
-4. Show the trash card: **Restore all** and **Empty trash**.
+3. Open a preview, review the pre-selected copies, tap the clean button, confirm.
+4. Open the **Trash** tab: show restoring a file and **Empty Trash**.
 5. Say aloud (or caption) what the permission is used for.
 
 ## If it is rejected

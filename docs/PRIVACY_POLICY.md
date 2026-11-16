@@ -1,6 +1,6 @@
 # Privacy Policy: Cloneout
 
-_Last updated: [DATE]_
+_Last updated: 16 November 2026_
 
 Cloneout: Duplicate Cleaner ("the app") is published by [YOUR NAME OR COMPANY] ("we"). Contact: [CONTACT EMAIL].
 
@@ -8,7 +8,7 @@ Cloneout: Duplicate Cleaner ("the app") is published by [YOUR NAME OR COMPANY] (
 > (for example GitHub Pages), and enter that URL in Play Console. It is not legal advice.
 
 ## What the app does with your files
-The app scans the storage on your device to find identical files. This happens **entirely on your device**.
+The app scans the storage on your device to find identical files and visually similar photos. This happens **entirely on your device**.
 File names, contents, hashes and previews are **not uploaded, sold or shared** with us or anyone else.
 We do not have accounts, and we do not collect your name, email address, contacts, location or messages.
 
@@ -19,11 +19,13 @@ We do not have accounts, and we do not collect your name, email address, contact
 - **Advertising ID:** used by the ad provider (see below).
 
 ## Trash folder
-Files you remove are moved to a folder named "DuplicateCleaner Trash" on your storage. You can restore
+Files you remove are moved to a folder named "Cloneout Trash" on your storage. You can restore
 them or delete them permanently from within the app. Uninstalling the app does not delete this folder.
 
 ## Ads (Google AdMob)
-The free version shows ads served by Google AdMob. AdMob may collect and use your advertising ID,
+The free version offers optional rewarded ads (you watch a short ad to earn extra free cleanup), served by Google AdMob.
+Where required by law (for example in the EEA and UK), the app first asks for your consent through Google's
+User Messaging Platform, and you can change your choice later in Settings ("Ad privacy choices"). AdMob may collect and use your advertising ID,
 IP address, device and app information, and ad interaction data to show and measure ads.
 This is handled by Google under its own policy: https://policies.google.com/privacy .
 You can reset your advertising ID or opt out of ad personalisation in your Android settings

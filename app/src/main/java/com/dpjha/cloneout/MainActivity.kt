@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
-import com.dpjha.cloneout.ui.SplashOverlay
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,14 +36,7 @@ class MainActivity : ComponentActivity() {
     private var scanAfterSettings = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen().setOnExitAnimationListener { splash ->
-            // Fade and gently grow the splash away instead of cutting to the app.
-            splash.view.animate()
-                .alpha(0f).scaleX(1.06f).scaleY(1.06f)
-                .setDuration(220)
-                .withEndAction { splash.remove() }
-                .start()
-        }
+        installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         ConsentManager.gather(this) { viewModel.startAds() }
@@ -92,7 +84,6 @@ class MainActivity : ComponentActivity() {
                         )
                     )
                 }
-                SplashOverlay()
               }
             }
         }

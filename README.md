@@ -24,7 +24,7 @@ you can mark a copy for trash or keep it right from the preview.
 - Other rules: **Oldest**, **Newest**, **Shortest** path, or **Keep here** on a folder from the
   "Where the duplicates are" summary. You can still tick or untick individual files.
 - Tuning: weights and the confidence margin are in `data/SmartKeeper.kt`.
-- Files are **moved to a trash folder** (`DuplicateCleaner Trash` on internal storage, keeps the
+- Files are **moved to a trash folder** (`Cloneout Trash` on internal storage, keeps the
   original folder structure, hidden from gallery apps via `.nomedia`), not deleted.
   **Restore all** puts them back; **Empty trash** deletes them permanently and frees the space.
 

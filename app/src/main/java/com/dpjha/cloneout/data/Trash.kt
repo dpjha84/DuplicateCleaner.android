@@ -9,7 +9,7 @@ import java.io.File
  * and music apps from listing trashed items.
  */
 object Trash {
-    const val DIR_NAME = "DuplicateCleaner Trash"
+    const val DIR_NAME = "Cloneout Trash"
 
     data class MoveResult(val moved: List<String>, val failed: Int)
 

@@ -20,7 +20,7 @@
       Files and file hashes stay on the device (not collected).
 - [ ] **Ads declaration:** "Contains ads" = yes.
 - [ ] **Target audience:** adults / 18+ (do not target children, which would restrict ad SDK use).
-- [ ] **EEA/UK users:** add Google's consent form (UMP SDK) before serving ads there. Not included yet.
+- [x] **EEA/UK users:** Google's consent form (UMP SDK) is included. Still create the consent message in AdMob > Privacy & messaging.
 
 ## Store listing: say what is true
 - Free scan, preview and trash. Free cleanup up to 500 MB (+500 MB per rewarded ad), cleaning similar photos is Pro only, then a **one-time** Pro unlock. No subscription.
@@ -52,7 +52,8 @@ will never show a price. To test the paywall end to end:
 - [x] AdMob consent (Google UMP) before any ad request; "Ad privacy choices" row appears in Settings where required
 - [x] Signed AAB from CI, splash screen, icon, feature graphic, listing text in `docs/store/LISTING.md`
 - [ ] Real AdMob IDs in GitHub secrets (ADMOB_APP_ID, ADMOB_BANNER_ID, ADMOB_REWARDED_ID); set up the UMP message in AdMob > Privacy & messaging
-- [ ] `PRIVACY_URL` secret/env set to the hosted policy
+- [ ] Privacy policy hosted (see `docs/privacy.html`, GitHub Pages) and its URL set as repo variable `PRIVACY_URL`
+- [ ] Data safety and content rating answers: `docs/DATA_SAFETY.md`
 - [ ] `pro_unlock` in-app product created and active
 - [ ] All files access declaration (see `ALL_FILES_ACCESS_DECLARATION.md`), Data safety, content rating
 - [ ] Phone screenshots; closed test with 12+ testers for 14 days if your account is a new personal one
