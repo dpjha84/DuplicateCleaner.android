@@ -16,7 +16,7 @@ Cloneout finds duplicate files by content, not by name, and helps you clear them
 ★ Safe Trash: nothing is deleted straight away, restore any file with one tap
 ★ Private by design: no account, and your files never leave your device
 
-FREE: unlimited scanning and previews, plus 500 MB of cleanup. Watch a short ad for 100 MB more.
+FREE: unlimited scanning and previews, plus 1 GB of cleanup. Watch a short ad for 50 MB more.
 PRO (one-time purchase, no subscription): unlimited cleanup, similar-photo cleanup, no ads.
 
 Cloneout needs "All files access" to scan every folder on your device for duplicates. Files are only read on your phone and are never uploaded.
