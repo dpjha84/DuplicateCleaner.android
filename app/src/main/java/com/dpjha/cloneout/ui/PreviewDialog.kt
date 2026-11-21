@@ -99,6 +99,10 @@ fun PreviewDialog(
 ) {
     val file = files[index]
     val context = LocalContext.current
+    // Once per time the preview opens (not when flipping between files).
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        com.dpjha.cloneout.telemetry.Telemetry.event("preview_open", "kind" to file.kind.name.lowercase())
+    }
 
     Dialog(
         onDismissRequest = onClose,

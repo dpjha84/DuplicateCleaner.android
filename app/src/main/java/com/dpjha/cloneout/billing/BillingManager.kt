@@ -2,6 +2,7 @@ package com.dpjha.cloneout.billing
 
 import android.app.Activity
 import android.content.Context
+import com.dpjha.cloneout.telemetry.Telemetry
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -43,6 +44,8 @@ class BillingManager(
     val events: SharedFlow<String> = _events.asSharedFlow()
 
     private var productDetails: ProductDetails? = null
+    private var priceMicros = 0L
+    private var currency = ""
 
     private val client: BillingClient = BillingClient.newBuilder(context.applicationContext)
         .setListener(this)
@@ -64,6 +67,7 @@ class BillingManager(
                     refresh()
                 } else {
                     _unavailable.value = true
+                    Telemetry.event("billing_setup_failed", "code" to result.responseCode)
                 }
             }
 
@@ -88,15 +92,19 @@ class BillingManager(
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                 productDetails = queryResult.productDetailsList.firstOrNull()
                 _price.value = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice
+                priceMicros = productDetails?.oneTimePurchaseOfferDetails?.priceAmountMicros ?: 0L
+                currency = productDetails?.oneTimePurchaseOfferDetails?.priceCurrencyCode ?: ""
                 _unavailable.value = productDetails == null
+                if (productDetails == null) Telemetry.event("billing_product_missing")
             } else {
                 _unavailable.value = true
+                Telemetry.event("billing_product_failed", "code" to result.responseCode)
             }
         }
     }
 
     /** Re-checks what the user owns. Also serves as "Restore purchase". */
-    fun refresh() {
+    fun refresh(userInitiated: Boolean = false) {
         if (!client.isReady) {
             connect()
             return
@@ -109,6 +117,9 @@ class BillingManager(
                 val owned = purchases.filter(::isProPurchase)
                 owned.forEach(::acknowledgeIfNeeded)
                 setPro(owned.isNotEmpty())
+                if (userInitiated) Telemetry.event("restore_purchase_result", "found" to owned.isNotEmpty())
+            } else if (userInitiated) {
+                Telemetry.event("restore_purchase_result", "found" to false, "code" to result.responseCode)
             }
         }
     }
@@ -116,6 +127,7 @@ class BillingManager(
     fun launchPurchase(activity: Activity) {
         val details = productDetails
         if (!client.isReady || details == null) {
+            Telemetry.event("purchase_blocked", "store_unavailable" to _unavailable.value)
             _events.tryEmit(
                 if (_unavailable.value) "Purchases work in the Play Store version of Cloneout. Install it from Google Play (or the testing link) and try again."
                 else "Store isn't ready yet. Check your connection and try again."
@@ -132,7 +144,19 @@ class BillingManager(
                 )
             )
             .build()
-        client.launchBillingFlow(activity, flow)
+        Telemetry.event(
+            "begin_checkout",
+            "item_id" to PRO_PRODUCT_ID, "value" to (priceMicros / 1_000_000.0), "currency" to currency
+        )
+        val launchResult = client.launchBillingFlow(activity, flow)
+        when (launchResult.responseCode) {
+            BillingClient.BillingResponseCode.OK -> Unit
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> refresh()
+            else -> {
+                Telemetry.event("purchase_error", "code" to launchResult.responseCode, "stage" to "launch")
+                _events.tryEmit("Couldn't open the purchase screen. Please try again.")
+            }
+        }
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {
@@ -140,18 +164,29 @@ class BillingManager(
             BillingClient.BillingResponseCode.OK -> {
                 val list = purchases.orEmpty()
                 if (list.any { it.products.contains(PRO_PRODUCT_ID) && it.purchaseState == Purchase.PurchaseState.PENDING }) {
+                    Telemetry.event("purchase_pending")
                     _events.tryEmit("Payment pending. Pro unlocks when it completes.")
                 }
                 val owned = list.filter(::isProPurchase)
                 if (owned.isNotEmpty()) {
                     owned.forEach(::acknowledgeIfNeeded)
                     setPro(true)
+                    Telemetry.event(
+                        "purchase",
+                        "item_id" to PRO_PRODUCT_ID,
+                        "value" to (priceMicros / 1_000_000.0),
+                        "currency" to currency,
+                        "transaction_id" to owned.first().orderId
+                    )
                     _events.tryEmit("Thank you! Pro is unlocked.")
                 }
             }
-            BillingClient.BillingResponseCode.USER_CANCELED -> Unit
+            BillingClient.BillingResponseCode.USER_CANCELED -> Telemetry.event("purchase_cancel")
             BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> refresh()
-            else -> _events.tryEmit("Purchase failed. You have not been charged.")
+            else -> {
+                Telemetry.event("purchase_error", "code" to result.responseCode, "stage" to "result")
+                _events.tryEmit("Purchase failed. You have not been charged.")
+            }
         }
     }
 

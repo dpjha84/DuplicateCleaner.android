@@ -108,13 +108,26 @@ fun PaywallDialog(state: UiState, selectedBytes: Long, actions: ProActions) {
                     // Ads and the free allowance only apply to exact duplicates.
                     if (!state.similarLocked) OutlinedButton(
                         onClick = actions.watchAd,
-                        enabled = state.rewardReady,
+                        enabled = state.rewardReady && state.adsLeftToday > 0,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Rounded.PlayCircle, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(if (state.rewardReady) "+${formatSize(Entitlements.REWARD_BYTES)} for a short ad" else "Ad loading…")
+                        Text(
+                            when {
+                                state.adsLeftToday <= 0 -> "Ad limit reached for today"
+                                !state.rewardReady -> "Ad loading…"
+                                else -> "+${formatSize(Entitlements.REWARD_BYTES)} for a short ad"
+                            }
+                        )
                     }
+                    if (!state.similarLocked) Text(
+                        "${state.adsLeftToday} of ${Entitlements.MAX_ADS_PER_DAY} ad top-ups left today",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
                     if (!state.similarLocked && state.freeRemaining > 0) {
                         TextButton(onClick = actions.cleanFree, modifier = Modifier.fillMaxWidth()) {
                             Text("Clean only what fits free (${formatSize(state.freeRemaining)})")

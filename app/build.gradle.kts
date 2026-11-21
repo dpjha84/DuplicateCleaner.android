@@ -3,6 +3,14 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// Firebase (Analytics + Crashlytics) is configured by app/google-services.json, which is NOT in the
+// repo (CI writes it from the GOOGLE_SERVICES_JSON secret). Without it the app builds and runs normally,
+// with telemetry switched off.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
 android {
     namespace = "com.dpjha.cloneout"
     compileSdk = 36
@@ -13,7 +21,7 @@ android {
         targetSdk = 36
         // Play Store needs a higher versionCode for every upload; CI uses the run number.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "1.0"
+        versionName = "1.1.0"
 
         // AdMob IDs. Release builds read real IDs from the environment (GitHub secrets);
         // without them, Google's public TEST IDs are used so you never ship or click real ads by accident.
@@ -71,6 +79,8 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        // Safety net: Firebase pulls in libraries compiled with newer Kotlin; read their metadata anyway.
+        freeCompilerArgs += "-Xskip-metadata-version-check"
     }
     buildFeatures {
         compose = true
@@ -101,5 +111,10 @@ dependencies {
     implementation("com.android.billingclient:billing:8.0.0")
     implementation("com.google.android.gms:play-services-ads:23.3.0")
     implementation("com.google.android.ump:user-messaging-platform:3.0.0")
+    // Firebase: plain (non-ktx) artifacts, versions managed by the BoM. Kept on an older BoM that
+    // works with this project's Kotlin 1.9.24.
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-crashlytics")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

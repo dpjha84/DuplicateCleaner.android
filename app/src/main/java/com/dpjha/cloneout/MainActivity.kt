@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.dpjha.cloneout.ads.ConsentManager
+import com.dpjha.cloneout.telemetry.Telemetry
 import com.dpjha.cloneout.ui.MainScreen
 import com.dpjha.cloneout.ui.ProActions
 import com.dpjha.cloneout.ui.theme.AppTheme
@@ -39,7 +40,12 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        ConsentManager.gather(this) { viewModel.startAds() }
+        Telemetry.init(application)
+        // Ads and analytics only start once the consent flow allows it.
+        ConsentManager.gather(this) {
+            Telemetry.setConsent(true)
+            viewModel.startAds()
+        }
         setContent {
             val state by viewModel.state.collectAsState()
             AppTheme(state.themeMode, state.dynamicColor) {
@@ -48,7 +54,11 @@ class MainActivity : ComponentActivity() {
                     val permissionLauncher = rememberLauncherForActivityResult(
                         ActivityResultContracts.RequestMultiplePermissions()
                     ) { grants ->
-                        if (grants.isNotEmpty() && grants.values.all { it }) viewModel.startScan()
+                        if (grants.isNotEmpty()) {
+                            val ok = grants.values.all { it }
+                            Telemetry.event("storage_permission_result", "granted" to ok)
+                            if (ok) viewModel.startScan()
+                        }
                     }
 
                     MainScreen(
@@ -59,6 +69,7 @@ class MainActivity : ComponentActivity() {
                                 hasAllFilesAccess() -> viewModel.startScan()
                                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                                     scanAfterSettings = true
+                                    Telemetry.event("storage_permission_request")
                                     startActivity(
                                         Intent(
                                             Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
@@ -66,12 +77,15 @@ class MainActivity : ComponentActivity() {
                                         )
                                     )
                                 }
-                                else -> permissionLauncher.launch(
+                                else -> {
+                                    Telemetry.event("storage_permission_request")
+                                    permissionLauncher.launch(
                                     arrayOf(
                                         Manifest.permission.READ_EXTERNAL_STORAGE,
                                         Manifest.permission.WRITE_EXTERNAL_STORAGE
                                     )
-                                )
+                                    )
+                                }
                             }
                         },
                         pro = ProActions(
@@ -94,7 +108,9 @@ class MainActivity : ComponentActivity() {
         viewModel.refreshTrash()
         if (scanAfterSettings) {
             scanAfterSettings = false
-            if (hasAllFilesAccess()) viewModel.startScan()
+            val granted = hasAllFilesAccess()
+            Telemetry.event("storage_permission_result", "granted" to granted)
+            if (granted) viewModel.startScan()
         }
     }
 

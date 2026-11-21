@@ -154,6 +154,18 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, pro: ProActions) {
                     Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null)
                 }
             }
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Share anonymous usage data")
+                    Text(
+                        "Helps fix bugs and improve Cloneout. Never includes your files or their names.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(checked = state.shareUsage, onCheckedChange = vm::setShareUsage)
+            }
             Text(
                 "Version ${BuildConfig.VERSION_NAME} · No account needed · Files never leave your device",
                 style = MaterialTheme.typography.bodySmall,
@@ -220,14 +232,15 @@ private fun PlanCard(state: UiState, pro: ProActions) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(
                     onClick = pro.watchAd,
-                    enabled = state.rewardReady,
+                    enabled = state.rewardReady && state.adsLeftToday > 0,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     Icon(Icons.Rounded.PlayCircle, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        "+${com.dpjha.cloneout.billing.Entitlements.REWARD_BYTES shr 20} MB",
+                        if (state.adsLeftToday > 0) "+${com.dpjha.cloneout.billing.Entitlements.REWARD_BYTES shr 20} MB"
+                        else "Back tomorrow",
                         maxLines = 1,
                         softWrap = false,
                         style = MaterialTheme.typography.labelLarge
@@ -237,6 +250,11 @@ private fun PlanCard(state: UiState, pro: ProActions) {
                     Text("Restore purchase", maxLines = 1)
                 }
             }
+            Text(
+                "Free top-ups from ads: ${state.adsLeftToday} of ${com.dpjha.cloneout.billing.Entitlements.MAX_ADS_PER_DAY} left today",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

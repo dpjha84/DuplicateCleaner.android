@@ -1,6 +1,6 @@
 # Data safety and content rating: answers to enter in Play Console
 
-Answer for the build as it is. If you add analytics, crash reporting or login later, update the form first.
+Answer for the build as it is (1.1.0 adds Firebase Analytics and Crashlytics). Update the form BEFORE releasing 1.1.0 to production.
 
 ## Data safety form
 **Does the app collect or share user data?** Yes (because of ads and purchases).
@@ -11,6 +11,9 @@ Answer for the build as it is. If you add analytics, crash reporting or login la
 | Device or other IDs (Advertising ID) | Yes | Yes, with Google (AdMob) | Advertising | Not required to use the app; Pro removes ads |
 | App interactions / diagnostics (ad SDK) | Yes | Yes, with Google (AdMob) | Advertising, fraud prevention | Collected by the AdMob SDK |
 | Approximate location (IP-based, ad SDK) | Yes | Yes, with Google (AdMob) | Advertising | Collected by the AdMob SDK |
+| App interactions (Firebase Analytics) | Yes | Yes, with Google (Firebase) | Analytics | Counts and sizes only, no file names; optional (Settings switch) |
+| Crash logs and Diagnostics (Crashlytics) | Yes | Yes, with Google (Firebase) | App functionality, Analytics | Stack traces, device model, Android version; optional |
+| Device or other IDs (Firebase app-instance ID) | Yes | Yes, with Google (Firebase) | Analytics, App functionality | Add Analytics and App functionality to the Advertising ID row's purposes |
 | Purchase history | Processed by Google Play | No | App functionality | We only receive "Pro unlocked" |
 | Files and docs, photos, videos | **No** | **No** | n/a | Read and processed on the device only; never leave it |
 

@@ -3,6 +3,7 @@ package com.dpjha.cloneout
 import android.app.Activity
 import android.app.Application
 import android.media.MediaScannerConnection
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.dpjha.cloneout.ads.AdManager
@@ -25,6 +26,7 @@ import com.dpjha.cloneout.data.SmartChoice
 import com.dpjha.cloneout.data.SmartKeeper
 import com.dpjha.cloneout.data.ThemeMode
 import com.dpjha.cloneout.data.Trash
+import com.dpjha.cloneout.telemetry.Telemetry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -115,7 +117,11 @@ data class UiState(
     val freeTotal: Long = Entitlements.FREE_BYTES,
     val proPrice: String? = null,
     val rewardReady: Boolean = false,
+    /** Ad top-ups still available today (daily cap). */
+    val adsLeftToday: Int = Entitlements.MAX_ADS_PER_DAY,
     val showPaywall: Boolean = false,
+    /** "Share anonymous usage data" setting. */
+    val shareUsage: Boolean = true,
 
     val message: String? = null,
     val messageAction: SnackAction? = null
@@ -225,7 +231,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             lifetimeFiles = prefs.lifetimeFiles,
             isPro = entitlements.isProCached,
             freeRemaining = entitlements.freeRemaining(),
-            freeTotal = entitlements.freeTotal()
+            freeTotal = entitlements.freeTotal(),
+            adsLeftToday = entitlements.adsLeftToday(),
+            shareUsage = prefs.shareUsage
         )
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -233,6 +241,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private var scanJob: Job? = null
     private var similarJob: Job? = null
     private var regroupJob: Job? = null
+    private var scanStartedAt = 0L
+    private var similarStartedAt = 0L
 
     /** Signatures of this scan's photos, kept so changing the match level doesn't rescan. */
     private var similarSigs: List<SimilarCandidate> = emptyList()
@@ -245,6 +255,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
         viewModelScope.launch {
             billing.isPro.collect { pro ->
+                Telemetry.setPlan(pro)
                 _state.update { it.copy(isPro = pro, showPaywall = it.showPaywall && !pro) }
             }
         }
@@ -262,8 +273,16 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     // ---- Navigation ----
 
     fun setTab(tab: Tab) {
+        if (tab != _state.value.tab) {
+            Telemetry.screen(when (tab) { Tab.HOME -> "home"; Tab.TRASH -> "trash"; Tab.SETTINGS -> "settings" })
+        }
         _state.update { it.copy(tab = tab) }
         if (tab == Tab.TRASH) refreshTrash()
+        if (tab == Tab.SETTINGS) {
+            // A new day may have started since the screen last looked; also retries a failed ad load.
+            refreshAllowance()
+            ads.loadRewarded()
+        }
     }
 
     /** Back from the results screen to Home. */
@@ -291,12 +310,28 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun setResultsTab(tab: ResultsTab) = _state.update { it.copy(resultsTab = tab) }
+    fun setResultsTab(tab: ResultsTab) {
+        val s = _state.value
+        if (tab != s.resultsTab) {
+            Telemetry.event("results_tab_view", "tab" to tab.name.lowercase(), "plan" to plan())
+            if (tab == ResultsTab.SIMILAR && !s.isPro && s.similarGroups.size > FREE_SIMILAR_GROUPS) {
+                Telemetry.event(
+                    "similar_teaser_view",
+                    "groups" to s.similarGroups.size,
+                    "locked_groups" to (s.similarGroups.size - FREE_SIMILAR_GROUPS)
+                )
+            }
+        }
+        _state.update { it.copy(resultsTab = tab) }
+    }
+
+    private fun plan(): String = if (_state.value.isPro) "pro" else "free"
 
     // ---- Settings ----
 
     fun toggleKind(kind: FileKind) {
         val next = _state.value.scanKinds.let { if (kind in it) it - kind else it + kind }
+        Telemetry.event("settings_change", "setting" to "scan_kind", "value" to "${kind.name.lowercase()}:${if (kind in next) "on" else "off"}")
         prefs.scanKinds = next
         // Choosing Photos switches similar-photo matching on, so users get a taste of it by default.
         val similarOn = if (kind == FileKind.IMAGE && kind in next) true else _state.value.scanSimilar
@@ -305,6 +340,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun setScanSimilar(on: Boolean) {
+        Telemetry.event("settings_change", "setting" to "scan_similar", "value" to on)
         prefs.scanSimilar = on
         _state.update { it.copy(scanSimilar = on) }
     }
@@ -312,6 +348,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     /** Changes how alike photos must be. Re-groups from the saved signatures, so it is instant. */
     fun setSimilarLevel(level: Sensitivity) {
         if (level == _state.value.similarLevel) return
+        Telemetry.event("settings_change", "setting" to "similar_level", "value" to level.name.lowercase())
         prefs.similarLevel = level
         _state.update { it.copy(similarLevel = level) }
         if (similarSigs.isEmpty() || _state.value.similarRunning) return
@@ -323,31 +360,48 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun setMinSize(bytes: Long) {
+        Telemetry.event("settings_change", "setting" to "min_size_kb", "value" to (bytes shr 10))
         prefs.minSizeBytes = bytes
         _state.update { it.copy(minSizeBytes = bytes) }
     }
 
     fun setThemeMode(mode: ThemeMode) {
+        Telemetry.event("settings_change", "setting" to "theme", "value" to mode.name.lowercase())
         prefs.themeMode = mode
         _state.update { it.copy(themeMode = mode) }
     }
 
     fun setDynamicColor(on: Boolean) {
+        Telemetry.event("settings_change", "setting" to "dynamic_color", "value" to on)
         prefs.dynamicColor = on
         _state.update { it.copy(dynamicColor = on) }
     }
 
     fun setCleanMode(mode: CleanMode) {
+        Telemetry.event("settings_change", "setting" to "clean_mode", "value" to mode.name.lowercase())
         prefs.cleanMode = mode
         _state.update { it.copy(cleanMode = mode) }
     }
 
+    /** Turns analytics and crash reports on or off. The change is logged first, while still allowed. */
+    fun setShareUsage(on: Boolean) {
+        Telemetry.event("settings_change", "setting" to "share_usage", "value" to on)
+        prefs.shareUsage = on
+        Telemetry.setShareUsage(on)
+        _state.update { it.copy(shareUsage = on) }
+    }
+
     // ---- Scanning ----
 
-    /** Re-reads the allowance marker (storage access may have just been granted). */
+    /** Re-reads the allowance marker (storage access may have just been granted) and today's ad count. */
     private fun refreshAllowance() {
-        if (entitlements.syncFromMarker()) {
-            _state.update { it.copy(freeRemaining = entitlements.freeRemaining(), freeTotal = entitlements.freeTotal()) }
+        entitlements.syncFromMarker()
+        val free = entitlements.freeRemaining()
+        val total = entitlements.freeTotal()
+        val left = entitlements.adsLeftToday()
+        _state.update {
+            if (it.freeRemaining == free && it.freeTotal == total && it.adsLeftToday == left) it
+            else it.copy(freeRemaining = free, freeTotal = total, adsLeftToday = left)
         }
     }
 
@@ -360,6 +414,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
         scanJob?.cancel()
         resetSimilar()
+        scanStartedAt = SystemClock.elapsedRealtime()
+        Telemetry.event(
+            "scan_start",
+            "kinds" to s.scanKinds.joinToString(",") { it.name.lowercase() },
+            "min_size_kb" to (s.minSizeBytes shr 10),
+            "similar" to (s.scanSimilar && FileKind.IMAGE in s.scanKinds),
+            "plan" to plan()
+        )
         _state.update {
             it.copy(
                 tab = Tab.HOME, phase = Phase.SCANNING, progress = ScanProgress(), groups = emptyList(),
@@ -373,6 +435,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
                 val groups = result.groups
                 val smart = withContext(Dispatchers.IO) { SmartKeeper.decideAll(groups) }
+                Telemetry.event(
+                    "scan_complete",
+                    "duration_ms" to (SystemClock.elapsedRealtime() - scanStartedAt),
+                    "groups" to groups.size,
+                    "files" to groups.sumOf { it.files.size },
+                    "reclaimable_mb" to (groups.sumOf { it.reclaimable } shr 20),
+                    "photos" to result.images.size
+                )
                 _state.update {
                     it.copy(
                         phase = Phase.RESULTS,
@@ -389,6 +459,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Telemetry.error("scan", e)
                 _state.update { it.copy(phase = Phase.IDLE) }
                 toast("Scan failed: ${e.message}")
             }
@@ -396,6 +467,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun cancelScan() {
+        Telemetry.event("scan_cancel", "elapsed_ms" to (SystemClock.elapsedRealtime() - scanStartedAt))
         scanJob?.cancel()
         resetSimilar()
         _state.update { it.copy(phase = Phase.IDLE, groups = emptyList(), selected = emptySet()) }
@@ -414,6 +486,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         smart: Map<String, SmartChoice>,
         minBytes: Long
     ) {
+        similarStartedAt = SystemClock.elapsedRealtime()
         _state.update {
             it.copy(
                 similarScanned = true, similarRunning = true, similarProgress = 0f,
@@ -437,6 +510,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
                 similarSigs = sigs
                 val found = withContext(Dispatchers.Default) { SimilarGrouper.group(liveSigs(), _state.value.similarLevel) }
+                Telemetry.event(
+                    "similar_complete",
+                    "duration_ms" to (SystemClock.elapsedRealtime() - similarStartedAt),
+                    "photos" to candidates.size,
+                    "groups" to found.size,
+                    "level" to _state.value.similarLevel.name.lowercase()
+                )
                 _state.update {
                     it.copy(
                         similarRunning = false,
@@ -450,6 +530,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Telemetry.error("similar", e)
                 _state.update { it.copy(similarRunning = false) }
                 toast("Couldn't finish looking for similar photos")
             }
@@ -544,47 +625,68 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val paths = summary.files.map { it.path }
         val sizeByPath = summary.files.associate { it.path to it.size }
         val mode = s.cleanMode
+        val tabName = s.resultsTab.name.lowercase()
+        val startedAt = SystemClock.elapsedRealtime()
+        Telemetry.event(
+            "clean_start",
+            "mode" to mode.name.lowercase(), "tab" to tabName,
+            "files" to summary.count, "mb" to (summary.bytes shr 20), "plan" to plan()
+        )
 
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                val r = if (mode == CleanMode.TRASH) Trash.moveToTrash(paths) else Trash.deletePermanently(paths)
-                // Tell the media library so gallery / music apps drop the old entries.
-                if (r.moved.isNotEmpty()) MediaScannerConnection.scanFile(app, r.moved.toTypedArray(), null, null)
-                r
-            }
-            val gone = result.moved.toSet()
-            gonePaths += gone
-            val doneBytes = result.moved.sumOf { sizeByPath[it] ?: 0L }
-            if (!_state.value.isPro) entitlements.recordUsed(doneBytes)
-            if (mode == CleanMode.DELETE) prefs.addFreed(doneBytes, gone.size)
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val r = if (mode == CleanMode.TRASH) Trash.moveToTrash(paths) else Trash.deletePermanently(paths)
+                    // Tell the media library so gallery / music apps drop the old entries.
+                    if (r.moved.isNotEmpty()) MediaScannerConnection.scanFile(app, r.moved.toTypedArray(), null, null)
+                    r
+                }
+                val gone = result.moved.toSet()
+                gonePaths += gone
+                val doneBytes = result.moved.sumOf { sizeByPath[it] ?: 0L }
+                if (!_state.value.isPro) entitlements.recordUsed(doneBytes)
+                if (mode == CleanMode.DELETE) prefs.addFreed(doneBytes, gone.size)
 
-            _state.update { st ->
-                val groups = st.groups
-                    .map { g -> g.copy(files = g.files.filter { it.path !in gone }) }
-                    .filter { it.files.size >= 2 }
-                val similar = st.similarGroups
-                    .map { g -> g.without(gone) }
-                    .filter { it.photos.size >= 2 }
-                st.copy(
-                    groups = groups,
-                    selected = st.selected - gone,
-                    similarGroups = similar,
-                    similarSelected = st.similarSelected - gone,
-                    freeRemaining = entitlements.freeRemaining(),
-                    freeTotal = entitlements.freeTotal(),
-                    lifetimeFreedBytes = prefs.lifetimeFreedBytes,
-                    lifetimeFiles = prefs.lifetimeFiles
+                _state.update { st ->
+                    val groups = st.groups
+                        .map { g -> g.copy(files = g.files.filter { it.path !in gone }) }
+                        .filter { it.files.size >= 2 }
+                    val similar = st.similarGroups
+                        .map { g -> g.without(gone) }
+                        .filter { it.photos.size >= 2 }
+                    st.copy(
+                        groups = groups,
+                        selected = st.selected - gone,
+                        similarGroups = similar,
+                        similarSelected = st.similarSelected - gone,
+                        freeRemaining = entitlements.freeRemaining(),
+                        freeTotal = entitlements.freeTotal(),
+                        lifetimeFreedBytes = prefs.lifetimeFreedBytes,
+                        lifetimeFiles = prefs.lifetimeFiles
+                    )
+                }
+                val failed = result.failed
+                Telemetry.event(
+                    "clean_complete",
+                    "mode" to mode.name.lowercase(), "tab" to tabName,
+                    "files" to gone.size, "mb" to (doneBytes shr 20), "failed" to failed,
+                    "duration_ms" to (SystemClock.elapsedRealtime() - startedAt), "plan" to plan()
                 )
+                val summaryText = if (mode == CleanMode.TRASH) {
+                    "Moved ${gone.size} files (${formatSize(doneBytes)}) to Trash"
+                } else {
+                    "Deleted ${gone.size} files · freed ${formatSize(doneBytes)}"
+                }
+                val text = summaryText + if (failed > 0) " · $failed failed" else ""
+                toast(text, if (mode == CleanMode.TRASH) SnackAction.VIEW_TRASH else null)
+                refreshTrash()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Telemetry.error("clean", e)
+                toast("Couldn't finish cleaning. Nothing else was changed.")
+                refreshTrash()
             }
-            val failed = result.failed
-            val summaryText = if (mode == CleanMode.TRASH) {
-                "Moved ${gone.size} files (${formatSize(doneBytes)}) to Trash"
-            } else {
-                "Deleted ${gone.size} files · freed ${formatSize(doneBytes)}"
-            }
-            val text = summaryText + if (failed > 0) " · $failed failed" else ""
-            toast(text, if (mode == CleanMode.TRASH) SnackAction.VIEW_TRASH else null)
-            refreshTrash()
         }
     }
 
@@ -617,6 +719,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 if (r.first.isNotEmpty()) MediaScannerConnection.scanFile(app, r.first.toTypedArray(), null, null)
                 r
             }
+            Telemetry.event("trash_restore", "files" to restored.size, "failed" to failed)
             toast("Restored ${restored.size} files" + if (failed > 0) " · $failed failed" else "")
             refreshTrash()
         }
@@ -631,6 +734,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             val bytes = paths.sumOf { sizeByPath[it] ?: 0L }
             prefs.addFreed(bytes, removed)
             _state.update { it.copy(lifetimeFreedBytes = prefs.lifetimeFreedBytes, lifetimeFiles = prefs.lifetimeFiles) }
+            Telemetry.event("trash_delete_forever", "files" to removed, "mb" to (bytes shr 20))
             toast("Deleted $removed files · freed ${formatSize(bytes)}")
             refreshTrash()
         }
@@ -638,28 +742,66 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     // ---- Pro / allowance ----
 
-    fun openPaywall() = _state.update { it.copy(showPaywall = true) }
-    fun closePaywall() = _state.update { it.copy(showPaywall = false) }
+    fun openPaywall() {
+        refreshAllowance()
+        val s = _state.value
+        if (s.showPaywall) return
+        Telemetry.event(
+            "paywall_view",
+            "from" to when {
+                s.tab == Tab.SETTINGS -> "settings"
+                s.resultsTab == ResultsTab.SIMILAR -> "similar"
+                else -> "results"
+            },
+            "selected_mb" to (s.activeSummary().bytes shr 20),
+            "free_left_mb" to (s.freeRemaining shr 20),
+            "ads_left" to s.adsLeftToday
+        )
+        ads.loadRewarded()
+        _state.update { it.copy(showPaywall = true) }
+    }
+
+    fun closePaywall() {
+        if (_state.value.showPaywall) Telemetry.event("paywall_dismiss")
+        _state.update { it.copy(showPaywall = false) }
+    }
 
     fun buyPro(activity: Activity) = billing.launchPurchase(activity)
 
     fun restorePurchase() {
-        billing.refresh()
+        Telemetry.event("restore_purchase_tap")
+        billing.refresh(userInitiated = true)
         toast("Checking your purchases…")
     }
 
     fun watchAd(activity: Activity) {
-        ads.showRewarded(activity) {
-            entitlements.addRewardBonus()
+        refreshAllowance()
+        if (entitlements.adsLeftToday() <= 0) {
+            Telemetry.event("rewarded_ad_cap_reached")
+            toast("You've used today's ad top-ups. Come back tomorrow, or unlock Pro.")
+            return
+        }
+        Telemetry.event("rewarded_ad_tap", "ads_left" to entitlements.adsLeftToday())
+        val started = ads.showRewarded(activity) {
+            val added = entitlements.addRewardBonus()
+            Telemetry.event(
+                "rewarded_ad_earned",
+                "granted" to added,
+                "ads_left" to entitlements.adsLeftToday(),
+                "mb" to (Entitlements.REWARD_BYTES shr 20)
+            )
             _state.update {
                 it.copy(
                     freeRemaining = entitlements.freeRemaining(),
                     freeTotal = entitlements.freeTotal(),
-                    message = "Added ${formatSize(Entitlements.REWARD_BYTES)} of free cleanup",
+                    adsLeftToday = entitlements.adsLeftToday(),
+                    message = if (added) "Added ${formatSize(Entitlements.REWARD_BYTES)} of free cleanup"
+                    else "You've used today's ad top-ups. Come back tomorrow.",
                     messageAction = null
                 )
             }
         }
+        if (!started) toast("The ad isn't ready yet. Try again in a moment.")
     }
 
     /** Shrinks the selection to the largest files that fit in what's left of the free allowance. */

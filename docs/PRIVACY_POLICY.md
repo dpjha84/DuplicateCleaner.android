@@ -31,6 +31,15 @@ This is handled by Google under its own policy: https://policies.google.com/priv
 You can reset your advertising ID or opt out of ad personalisation in your Android settings
 (Settings → Google → Ads). Buying Pro removes ads.
 
+## Analytics and crash reports (Firebase)
+From version 1.1.0 the app uses Google Firebase Analytics and Crashlytics to understand how the app is used and to fix bugs.
+They are switched off until you have answered the consent prompt (where one is required) and only run while
+"Share anonymous usage data" in Settings is on; you can turn it off at any time. We receive counts, sizes and file
+categories (for example "scan finished, 12 groups, 340 MB"), your plan (free or Pro), app and device model and Android version,
+purchase and ad events, and crash or error reports. We never receive file names, folder paths or file contents.
+Firebase also uses a random app-instance ID and may use your advertising ID. This is handled by Google under
+https://firebase.google.com/support/privacy .
+
 ## Purchases (Google Play Billing)
 The one-time Pro purchase is processed by Google Play. We receive confirmation that a purchase was made,
 not your payment details.

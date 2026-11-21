@@ -44,6 +44,11 @@ class Prefs(context: Context) {
         get() = CleanMode.entries.firstOrNull { it.name == p.getString(KEY_CLEAN, null) } ?: CleanMode.TRASH
         set(v) = p.edit().putString(KEY_CLEAN, v.name).apply()
 
+    /** "Share anonymous usage data" (analytics and crash reports). On by default; only sent after consent. */
+    var shareUsage: Boolean
+        get() = p.getBoolean(KEY_SHARE, true)
+        set(v) = p.edit().putBoolean(KEY_SHARE, v).apply()
+
     var lifetimeFreedBytes: Long
         get() = p.getLong(KEY_FREED, 0L)
         private set(v) = p.edit().putLong(KEY_FREED, v).apply()
@@ -66,6 +71,7 @@ class Prefs(context: Context) {
         const val KEY_THEME = "theme"
         const val KEY_DYNAMIC = "dynamic"
         const val KEY_CLEAN = "clean_mode"
+        const val KEY_SHARE = "share_usage"
         const val KEY_FREED = "freed_bytes"
         const val KEY_FILES = "freed_files"
     }
