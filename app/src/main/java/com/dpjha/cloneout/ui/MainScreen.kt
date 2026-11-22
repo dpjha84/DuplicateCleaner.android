@@ -94,6 +94,6 @@ fun MainScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit, pro: ProAc
     }
 
     if (state.showPaywall) {
-        PaywallDialog(state, state.selectionSummary().bytes, pro)
+        PaywallDialog(state, if (state.tab == Tab.SETTINGS) 0L else state.activeSummary().bytes, pro)
     }
 }

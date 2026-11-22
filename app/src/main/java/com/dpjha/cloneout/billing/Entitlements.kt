@@ -25,13 +25,38 @@ class Entitlements(context: Context) {
 
     private val prefs = context.getSharedPreferences("entitlements", Context.MODE_PRIVATE)
 
+    /**
+     * The "Pro" flag lives in its own file that is NOT part of Auto Backup, so a reinstall or a new phone
+     * never starts out as Pro; it becomes Pro only after Google Play confirms the purchase.
+     */
+    private val proPrefs = context.getSharedPreferences("pro_cache", Context.MODE_PRIVATE)
+
     init {
+        migrateProFlag(context)
         syncFromMarker()
     }
 
     var isProCached: Boolean
-        get() = prefs.getBoolean(KEY_PRO, false)
-        set(value) = prefs.edit().putBoolean(KEY_PRO, value).apply()
+        get() = proPrefs.getBoolean(KEY_PRO, false)
+        set(value) = proPrefs.edit().putBoolean(KEY_PRO, value).apply()
+
+    /**
+     * Version 1.0 kept the flag in the backed-up file. On a real update keep a paying user's Pro
+     * (so it shows even before Play answers); on a fresh install or restore drop it. Either way remove
+     * the old key so it is never backed up again.
+     */
+    private fun migrateProFlag(context: Context) {
+        try {
+            if (!prefs.contains(KEY_PRO)) return
+            val old = prefs.getBoolean(KEY_PRO, false)
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            val updated = info.lastUpdateTime > info.firstInstallTime
+            if (old && updated && !proPrefs.contains(KEY_PRO)) proPrefs.edit().putBoolean(KEY_PRO, true).apply()
+            prefs.edit().remove(KEY_PRO).apply()
+        } catch (e: Exception) {
+            // Leave things as they are; Google Play settles it at the next check.
+        }
+    }
 
     private var usedBytes: Long
         get() = prefs.getLong(KEY_USED, 0L)
@@ -54,7 +79,11 @@ class Entitlements(context: Context) {
      * Today's date as a day number. Never earlier than the last day an ad was watched, so setting the
      * phone clock back does not hand out extra ads.
      */
-    private fun today(): Long = maxOf(LocalDate.now().toEpochDay(), adDay)
+    private fun today(): Long {
+        val now = LocalDate.now().toEpochDay()
+        // A saved day far in the future (the phone clock was badly wrong once) must not lock ads for months.
+        return maxOf(now, minOf(adDay, now + 2))
+    }
 
     /** How many more top-up ads can be watched today. */
     fun adsLeftToday(): Int {
@@ -154,7 +183,14 @@ class Entitlements(context: Context) {
             // Never write a marker for a fresh install: nothing to protect, and it avoids touching
             // storage before the user has done anything.
             if (used == 0L && bonus == 0L && count == 0) return
-            f.writeText("v2|$used|$bonus|$day|$count|${sign("v2|$used|$bonus|$day|$count")}")
+            val text = "v2|$used|$bonus|$day|$count|${sign("v2|$used|$bonus|$day|$count")}"
+            // Write to a temp file and rename, so a crash mid-write can't leave a broken marker.
+            val tmp = File(f.parentFile, "$MARKER_NAME.tmp")
+            tmp.writeText(text)
+            if (!tmp.renameTo(f)) {
+                f.writeText(text)
+                tmp.delete()
+            }
         } catch (e: Exception) {
             // No storage access yet (or read-only): the preferences and backup still hold the counters.
         }

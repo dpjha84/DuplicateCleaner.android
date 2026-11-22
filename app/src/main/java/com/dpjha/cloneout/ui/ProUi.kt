@@ -128,7 +128,7 @@ fun PaywallDialog(state: UiState, selectedBytes: Long, actions: ProActions) {
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
-                    if (!state.similarLocked && state.freeRemaining > 0) {
+                    if (!state.similarLocked && state.freeRemaining > 0 && selectedBytes > 0) {
                         TextButton(onClick = actions.cleanFree, modifier = Modifier.fillMaxWidth()) {
                             Text("Clean only what fits free (${formatSize(state.freeRemaining)})")
                         }

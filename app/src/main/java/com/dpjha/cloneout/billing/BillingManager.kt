@@ -43,6 +43,12 @@ class BillingManager(
     private val _events = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val events: SharedFlow<String> = _events.asSharedFlow()
 
+    /** Bumped when a purchase completes, so an older, slower ownership query can't undo it. */
+    @Volatile private var purchaseEpoch = 0
+    /** The user tapped Restore and is waiting for an answer. */
+    private var restorePending = false
+    private var connecting = false
+
     private var productDetails: ProductDetails? = null
     private var priceMicros = 0L
     private var currency = ""
@@ -60,19 +66,27 @@ class BillingManager(
             refresh()
             return
         }
+        if (connecting) return
+        connecting = true
         client.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(result: BillingResult) {
+                connecting = false
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                     loadProduct()
                     refresh()
                 } else {
                     _unavailable.value = true
                     Telemetry.event("billing_setup_failed", "code" to result.responseCode)
+                    if (restorePending) {
+                        restorePending = false
+                        _events.tryEmit("Couldn't reach Google Play. Check your connection and try again.")
+                    }
                 }
             }
 
             override fun onBillingServiceDisconnected() {
                 // Reconnects on the next connect() / purchase attempt.
+                connecting = false
             }
         })
     }
@@ -105,21 +119,43 @@ class BillingManager(
 
     /** Re-checks what the user owns. Also serves as "Restore purchase". */
     fun refresh(userInitiated: Boolean = false) {
+        if (userInitiated) restorePending = true
         if (!client.isReady) {
             connect()
             return
         }
+        val epoch = purchaseEpoch
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.INAPP)
             .build()
         client.queryPurchasesAsync(params) { result, purchases ->
+            val manual = restorePending
+            restorePending = false
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                 val owned = purchases.filter(::isProPurchase)
+                Telemetry.event(
+                    "pro_status_check",
+                    "owned" to owned.size,
+                    "cached" to entitlements.isProCached,
+                    "manual" to manual
+                )
                 owned.forEach(::acknowledgeIfNeeded)
-                setPro(owned.isNotEmpty())
-                if (userInitiated) Telemetry.event("restore_purchase_result", "found" to owned.isNotEmpty())
-            } else if (userInitiated) {
-                Telemetry.event("restore_purchase_result", "found" to false, "code" to result.responseCode)
+                // A purchase finished while this query was running: its answer may be out of date, so it
+                // may confirm Pro but must not take it away.
+                if (owned.isNotEmpty() || epoch == purchaseEpoch) setPro(owned.isNotEmpty())
+                if (manual) {
+                    Telemetry.event("restore_purchase_result", "found" to owned.isNotEmpty())
+                    _events.tryEmit(
+                        if (owned.isNotEmpty()) "Pro restored. Thank you!"
+                        else "No Pro purchase found for this Google account."
+                    )
+                }
+            } else {
+                Telemetry.event("pro_status_check", "code" to result.responseCode, "cached" to entitlements.isProCached, "manual" to manual)
+                if (manual) {
+                    Telemetry.event("restore_purchase_result", "found" to false, "code" to result.responseCode)
+                    _events.tryEmit("Couldn't reach Google Play. Check your connection and try again.")
+                }
             }
         }
     }
@@ -129,7 +165,7 @@ class BillingManager(
         if (!client.isReady || details == null) {
             Telemetry.event("purchase_blocked", "store_unavailable" to _unavailable.value)
             _events.tryEmit(
-                if (_unavailable.value) "Purchases work in the Play Store version of Cloneout. Install it from Google Play (or the testing link) and try again."
+                if (_unavailable.value) "Couldn't reach Google Play. Check your connection and try again. Purchases need the Play Store version of Cloneout."
                 else "Store isn't ready yet. Check your connection and try again."
             )
             connect()
@@ -169,6 +205,7 @@ class BillingManager(
                 }
                 val owned = list.filter(::isProPurchase)
                 if (owned.isNotEmpty()) {
+                    purchaseEpoch++
                     owned.forEach(::acknowledgeIfNeeded)
                     setPro(true)
                     Telemetry.event(
@@ -185,7 +222,8 @@ class BillingManager(
             BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> refresh()
             else -> {
                 Telemetry.event("purchase_error", "code" to result.responseCode, "stage" to "result")
-                _events.tryEmit("Purchase failed. You have not been charged.")
+                _events.tryEmit("The purchase didn't complete. If you were charged, tap Restore purchase in Settings.")
+                refresh() // if the payment did go through, Pro unlocks right away
             }
         }
     }

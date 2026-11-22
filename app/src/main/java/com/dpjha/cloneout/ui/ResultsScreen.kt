@@ -618,7 +618,7 @@ private fun BottomBar(state: UiState, summary: com.dpjha.cloneout.SelectionSumma
     val fits = state.fits(summary.bytes)
     Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
         Column {
-            if (!state.isPro) BannerAd(Modifier.fillMaxWidth())
+            if (!state.isPro && state.adsAllowed) BannerAd(Modifier.fillMaxWidth())
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically

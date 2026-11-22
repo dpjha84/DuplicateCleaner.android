@@ -3,6 +3,7 @@ package com.dpjha.cloneout.ads
 import android.app.Activity
 import android.app.Application
 import android.os.Handler
+import android.os.SystemClock
 import android.os.Looper
 import com.dpjha.cloneout.BuildConfig
 import com.dpjha.cloneout.telemetry.Telemetry
@@ -27,8 +28,20 @@ class AdManager(private val app: Application) {
     val rewardReady: StateFlow<Boolean> = _rewardReady.asStateFlow()
 
     private var started = false
+    private var lastShowAt = -10_000L
+    private var loadedAt = 0L
     private var failures = 0
+
+    /** Set by the screen that offers the ad; called when an ad could not be shown. */
+    var onShowFailed: (() -> Unit)? = null
     private val handler = Handler(Looper.getMainLooper())
+
+    /** A loaded ad goes stale after about an hour; drop it a bit earlier and fetch a fresh one. */
+    private val expire = Runnable {
+        rewarded = null
+        _rewardReady.value = false
+        loadRewarded()
+    }
 
     /** Call only once consent allows ads (see ConsentManager). Safe to call repeatedly. */
     fun init() {
@@ -51,6 +64,9 @@ class AdManager(private val app: Application) {
                     loading = false
                     failures = 0
                     _rewardReady.value = true
+                    loadedAt = SystemClock.elapsedRealtime()
+                    handler.removeCallbacks(expire)
+                    handler.postDelayed(expire, EXPIRE_MS)
                     Telemetry.event("rewarded_ad_loaded")
                 }
 
@@ -69,11 +85,20 @@ class AdManager(private val app: Application) {
 
     /** Shows the ad. Returns false when none is ready (a new one is requested). */
     fun showRewarded(activity: Activity, onReward: () -> Unit): Boolean {
-        val ad = rewarded
+        if (SystemClock.elapsedRealtime() - lastShowAt < 1500) return true // double tap while the ad is opening
+        var ad = rewarded
+        // Wall-clock check (the timer below does not tick while the phone sleeps).
+        if (ad != null && SystemClock.elapsedRealtime() - loadedAt > EXPIRE_MS) {
+            rewarded = null
+            _rewardReady.value = false
+            ad = null
+        }
         if (ad == null) {
             loadRewarded()
             return false
         }
+        lastShowAt = SystemClock.elapsedRealtime()
+        handler.removeCallbacks(expire)
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdShowedFullScreenContent() {
                 Telemetry.event("rewarded_ad_shown")
@@ -84,6 +109,7 @@ class AdManager(private val app: Application) {
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
                 Telemetry.event("rewarded_ad_show_failed", "code" to error.code)
                 reset()
+                onShowFailed?.invoke()
             }
         }
         ad.show(activity) { onReward() }
@@ -91,6 +117,7 @@ class AdManager(private val app: Application) {
     }
 
     private fun reset() {
+        handler.removeCallbacks(expire)
         rewarded = null
         _rewardReady.value = false
         loadRewarded()
@@ -99,5 +126,6 @@ class AdManager(private val app: Application) {
     private companion object {
         const val MAX_RETRIES = 4
         const val RETRY_MS = 20_000L
+        const val EXPIRE_MS = 50 * 60_000L
     }
 }

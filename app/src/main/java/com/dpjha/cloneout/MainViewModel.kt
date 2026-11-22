@@ -30,6 +30,7 @@ import com.dpjha.cloneout.telemetry.Telemetry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -117,6 +118,8 @@ data class UiState(
     val freeTotal: Long = Entitlements.FREE_BYTES,
     val proPrice: String? = null,
     val rewardReady: Boolean = false,
+    /** True once the consent flow has allowed ads (banner ads wait for this). */
+    val adsAllowed: Boolean = false,
     /** Ad top-ups still available today (daily cap). */
     val adsLeftToday: Int = Entitlements.MAX_ADS_PER_DAY,
     val showPaywall: Boolean = false,
@@ -215,7 +218,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private val ads = AdManager(app)
 
     /** Called once the consent flow says ads may be requested. */
-    fun startAds() = ads.init()
+    fun startAds() {
+        ads.init()
+        _state.update { it.copy(adsAllowed = true) }
+    }
     private val prefs = Prefs(app)
 
     private val _state = MutableStateFlow(
@@ -242,6 +248,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private var similarJob: Job? = null
     private var regroupJob: Job? = null
     private var scanStartedAt = 0L
+    /** True while a clean is running, so a double tap can't start a second one against the same allowance. */
+    private var cleaning = false
     private var similarStartedAt = 0L
 
     /** Signatures of this scan's photos, kept so changing the match level doesn't rescan. */
@@ -614,6 +622,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** Cleans the current selection (to Trash or permanently, per settings), or shows the paywall if over the allowance. */
     fun cleanSelected() {
+        if (cleaning) return
         refreshAllowance()
         val s = _state.value
         val summary = s.activeSummary()
@@ -633,19 +642,28 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             "files" to summary.count, "mb" to (summary.bytes shr 20), "plan" to plan()
         )
 
+        val countsAgainstAllowance = !s.isPro
+        cleaning = true
         viewModelScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
+                // NonCancellable: once files start moving, the usage MUST be recorded even if the screen
+                // is closed meanwhile, or a free user would get the cleanup without it being counted.
+                val result = withContext(NonCancellable + Dispatchers.IO) {
                     val r = if (mode == CleanMode.TRASH) Trash.moveToTrash(paths) else Trash.deletePermanently(paths)
+                    val movedBytes = r.moved.sumOf { sizeByPath[it] ?: 0L }
+                    if (countsAgainstAllowance) entitlements.recordUsed(movedBytes)
+                    if (mode == CleanMode.DELETE) prefs.addFreed(movedBytes, r.moved.size)
                     // Tell the media library so gallery / music apps drop the old entries.
-                    if (r.moved.isNotEmpty()) MediaScannerConnection.scanFile(app, r.moved.toTypedArray(), null, null)
+                    try {
+                        if (r.moved.isNotEmpty()) MediaScannerConnection.scanFile(app, r.moved.toTypedArray(), null, null)
+                    } catch (e: Exception) {
+                        Telemetry.error("media_scan", e)
+                    }
                     r
                 }
                 val gone = result.moved.toSet()
                 gonePaths += gone
                 val doneBytes = result.moved.sumOf { sizeByPath[it] ?: 0L }
-                if (!_state.value.isPro) entitlements.recordUsed(doneBytes)
-                if (mode == CleanMode.DELETE) prefs.addFreed(doneBytes, gone.size)
 
                 _state.update { st ->
                     val groups = st.groups
@@ -684,8 +702,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 throw e
             } catch (e: Exception) {
                 Telemetry.error("clean", e)
-                toast("Couldn't finish cleaning. Nothing else was changed.")
+                toast("Couldn't finish cleaning. Check the Trash tab to see what was moved.")
                 refreshTrash()
+            } finally {
+                cleaning = false
             }
         }
     }
@@ -745,7 +765,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     fun openPaywall() {
         refreshAllowance()
         val s = _state.value
-        if (s.showPaywall) return
+        if (s.showPaywall || s.isPro) return
         Telemetry.event(
             "paywall_view",
             "from" to when {
@@ -782,6 +802,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             return
         }
         Telemetry.event("rewarded_ad_tap", "ads_left" to entitlements.adsLeftToday())
+        ads.onShowFailed = { toast("The ad couldn't be shown. Please try again in a moment.") }
         val started = ads.showRewarded(activity) {
             val added = entitlements.addRewardBonus()
             Telemetry.event(

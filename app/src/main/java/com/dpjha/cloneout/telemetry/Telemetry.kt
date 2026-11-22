@@ -131,7 +131,8 @@ object Telemetry {
             if (!active) return
             guard {
                 crashlytics?.setCustomKey("where", where)
-                crashlytics?.recordException(t)
+                // Exception messages can contain file paths, so only the type and stack trace are sent.
+                crashlytics?.recordException(RuntimeException(t.javaClass.name).also { it.stackTrace = t.stackTrace })
             }
         }
         event("app_error", "where" to where, "type" to t.javaClass.simpleName)
