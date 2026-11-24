@@ -23,13 +23,13 @@
 - [x] **EEA/UK users:** Google's consent form (UMP SDK) is included. Still create the consent message in AdMob > Privacy & messaging.
 
 ## Store listing: say what is true
-- Free scan, preview and trash. Free cleanup up to 200 MB (+50 MB per rewarded ad, max 2 a day), cleaning similar photos is Pro only, then a **one-time** Pro unlock. No subscription.
+- Free scan, preview and trash. Free cleanup up to 500 MB (+50 MB per rewarded ad, max 2 a day), cleaning similar photos is Pro only, then a **one-time** Pro unlock. No subscription.
 - Works on file *contents*, so renamed copies are found. Nothing is permanently deleted until you empty the trash.
 - No "boost", "RAM" or "junk" claims, and no fake alarms.
 
 ## After launch
 - Watch the Play Console funnel: installs → permission granted → scan finished → paywall shown → purchase.
-- Reviews will tell you whether 200 MB is too generous or too tight; adjust `Entitlements.FREE_BYTES`.
+- Reviews will tell you whether 500 MB is too generous or too tight; adjust `Entitlements.FREE_BYTES`.
 
 ## Store listing name
 - App title (30 max): `Cloneout: Duplicate Cleaner`

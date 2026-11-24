@@ -203,7 +203,7 @@ class Entitlements(context: Context) {
     }
 
     companion object {
-        const val FREE_BYTES = 200L shl 20      // 200 MB
+        const val FREE_BYTES = 500L shl 20      // 500 MB
         const val REWARD_BYTES = 50L shl 20      // 50 MB per rewarded ad
         const val MAX_ADS_PER_DAY = 2
         private const val MARKER_VERSION = 2
