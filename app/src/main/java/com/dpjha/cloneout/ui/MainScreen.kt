@@ -28,14 +28,15 @@ import com.dpjha.cloneout.Phase
 import com.dpjha.cloneout.SnackAction
 import com.dpjha.cloneout.Tab
 import com.dpjha.cloneout.UiState
+import com.dpjha.cloneout.data.Tool
 
 @Composable
-fun MainScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit, pro: ProActions) {
+fun MainScreen(state: UiState, vm: MainViewModel, onScan: (Tool?) -> Unit, pro: ProActions) {
     val snackbar = remember { SnackbarHostState() }
     val imageLoader = rememberImageLoader()
     val inFlow = state.tab == Tab.HOME && state.phase != Phase.IDLE
 
-    BackHandler(enabled = state.tab != Tab.HOME || state.phase == Phase.RESULTS) {
+    BackHandler(enabled = state.tab != Tab.HOME || state.phase == Phase.RESULTS || state.phase == Phase.TOOL) {
         if (state.tab != Tab.HOME) vm.setTab(Tab.HOME) else vm.leaveResults()
     }
 
@@ -86,6 +87,7 @@ fun MainScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit, pro: ProAc
                     Phase.IDLE -> HomeScreen(state, vm, onScan)
                     Phase.SCANNING -> ScanningScreen(state, vm)
                     Phase.RESULTS -> ResultsScreen(state, vm, imageLoader, pro)
+                    Phase.TOOL -> ToolScreen(state, vm, imageLoader, pro)
                 }
                 Tab.TRASH -> TrashScreen(state, vm, imageLoader)
                 Tab.SETTINGS -> SettingsScreen(state, vm, pro)

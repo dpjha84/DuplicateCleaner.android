@@ -614,7 +614,7 @@ private fun FileRow(
 }
 
 @Composable
-private fun BottomBar(state: UiState, summary: com.dpjha.cloneout.SelectionSummary, onClean: () -> Unit) {
+internal fun BottomBar(state: UiState, summary: com.dpjha.cloneout.SelectionSummary, onClean: () -> Unit) {
     val fits = state.fits(summary.bytes)
     Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
         Column {

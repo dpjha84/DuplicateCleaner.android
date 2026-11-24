@@ -21,7 +21,7 @@ android {
         targetSdk = 36
         // Play Store needs a higher versionCode for every upload; CI uses the run number.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "1.1.0"
+        versionName = "1.2.0"
 
         // AdMob IDs. Release builds read real IDs from the environment (GitHub secrets);
         // without them, Google's public TEST IDs are used so you never ship or click real ads by accident.

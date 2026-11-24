@@ -13,6 +13,7 @@ import com.dpjha.cloneout.data.CleanMode
 import com.dpjha.cloneout.data.DuplicateGroup
 import com.dpjha.cloneout.data.DuplicateScanner
 import com.dpjha.cloneout.data.FileKind
+import com.dpjha.cloneout.data.FileFinder
 import com.dpjha.cloneout.data.MediaFile
 import com.dpjha.cloneout.data.Prefs
 import com.dpjha.cloneout.data.ScanProgress
@@ -25,7 +26,10 @@ import com.dpjha.cloneout.data.SimilarPhotoScanner
 import com.dpjha.cloneout.data.SmartChoice
 import com.dpjha.cloneout.data.SmartKeeper
 import com.dpjha.cloneout.data.ThemeMode
+import com.dpjha.cloneout.data.Tool
 import com.dpjha.cloneout.data.Trash
+import com.dpjha.cloneout.data.WaCategory
+import com.dpjha.cloneout.data.waCategoryOf
 import com.dpjha.cloneout.telemetry.Telemetry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +42,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class Phase { IDLE, SCANNING, RESULTS }
+/** TOOL = the Large files / WhatsApp media screen (its own list, not duplicate groups). */
+enum class Phase { IDLE, SCANNING, RESULTS, TOOL }
 
 /** Free users see this many similar-photo groups in full; the rest are blurred teasers. Tune freely. */
 const val FREE_SIMILAR_GROUPS = 3
@@ -94,6 +99,17 @@ data class UiState(
     val similarGroups: List<SimilarGroup> = emptyList(),
     /** Photos Clean up will act on while the Similar tab is open. */
     val similarSelected: Set<String> = emptySet(),
+
+    // Large files / WhatsApp media
+    val tool: Tool? = null,
+    val toolRunning: Boolean = false,
+    val toolScanned: Int = 0,
+    val toolFiles: List<MediaFile> = emptyList(),
+    val toolSelected: Set<String> = emptySet(),
+    /** Large files: only show files at least this big (the scan itself keeps everything over 50 MB). */
+    val largeMinBytes: Long = 100L shl 20,
+    val toolKind: FileKind? = null,
+    val waCategory: WaCategory? = null,
 
     // Settings
     val scanSimilar: Boolean = true,
@@ -162,15 +178,33 @@ data class UiState(
         return SelectionSummary(files, files.sumOf { it.size }, fully)
     }
 
-    /** What Clean up acts on for the tab that is open. */
-    fun activeSummary(): SelectionSummary =
-        if (resultsTab == ResultsTab.SIMILAR) similarSummary() else selectionSummary()
+    /** Files the tool screen shows right now (after the size / type filters). Heavy: wrap in remember(). */
+    val toolVisible: List<MediaFile>
+        get() = when (tool) {
+            Tool.LARGE -> toolFiles.filter { it.size >= largeMinBytes && (toolKind == null || it.kind == toolKind) }
+            Tool.WHATSAPP -> toolFiles.filter { waCategory == null || waCategoryOf(it.path) == waCategory }
+            null -> emptyList()
+        }
+
+    /** Selected files among the ones shown; filtered-out files are never cleaned. */
+    fun toolSummary(visible: List<MediaFile> = toolVisible): SelectionSummary {
+        val files = visible.filter { it.path in toolSelected }
+        return SelectionSummary(files, files.sumOf { it.size }, 0)
+    }
+
+    /** What Clean up acts on for the screen that is open. */
+    fun activeSummary(): SelectionSummary = when {
+        tool != null -> toolSummary()
+        resultsTab == ResultsTab.SIMILAR -> similarSummary()
+        else -> selectionSummary()
+    }
 
     /** Cleaning similar photos is a Pro feature (finding and previewing them stays free). */
-    val similarLocked: Boolean get() = resultsTab == ResultsTab.SIMILAR && !isPro
+    val similarLocked: Boolean get() = tool == null && resultsTab == ResultsTab.SIMILAR && !isPro
 
     /** True when [bytes] can be cleaned without paying. */
-    fun fits(bytes: Long): Boolean = isPro || (resultsTab != ResultsTab.SIMILAR && bytes <= freeRemaining)
+    fun fits(bytes: Long): Boolean =
+        isPro || ((tool != null || resultsTab != ResultsTab.SIMILAR) && bytes <= freeRemaining)
 
     fun choiceFor(group: DuplicateGroup): SmartChoice? =
         group.files.firstNotNullOfOrNull { smart[it.path] }
@@ -300,7 +334,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         _state.update {
             it.copy(
                 phase = Phase.IDLE, groups = emptyList(), selected = emptySet(),
-                smart = emptyMap(), reviewed = emptySet(), reviewOnly = false, typeFilter = null
+                smart = emptyMap(), reviewed = emptySet(), reviewOnly = false, typeFilter = null,
+                tool = null, toolRunning = false, toolFiles = emptyList(), toolSelected = emptySet(),
+                toolKind = null, waCategory = null, showPaywall = false
             )
         }
     }
@@ -433,7 +469,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         _state.update {
             it.copy(
                 tab = Tab.HOME, phase = Phase.SCANNING, progress = ScanProgress(), groups = emptyList(),
-                selected = emptySet(), typeFilter = null, showPaywall = false, message = null, messageAction = null
+                selected = emptySet(), typeFilter = null, showPaywall = false, message = null, messageAction = null,
+                tool = null, toolFiles = emptyList(), toolSelected = emptySet()
             )
         }
         scanJob = viewModelScope.launch {
@@ -480,6 +517,64 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         resetSimilar()
         _state.update { it.copy(phase = Phase.IDLE, groups = emptyList(), selected = emptySet()) }
     }
+
+    // ---- Large files / WhatsApp media ----
+
+    /** Opens the Large files or WhatsApp media screen and starts looking. Nothing is selected by default. */
+    fun openTool(tool: Tool) {
+        refreshAllowance()
+        scanJob?.cancel()
+        resetSimilar()
+        val startedAt = SystemClock.elapsedRealtime()
+        Telemetry.event("tool_open", "tool" to tool.name.lowercase(), "plan" to plan())
+        _state.update {
+            it.copy(
+                tab = Tab.HOME, phase = Phase.TOOL, tool = tool, toolRunning = true, toolScanned = 0,
+                toolFiles = emptyList(), toolSelected = emptySet(), toolKind = null, waCategory = null,
+                groups = emptyList(), selected = emptySet(), showPaywall = false, message = null, messageAction = null
+            )
+        }
+        scanJob = viewModelScope.launch {
+            try {
+                val progress: (Int) -> Unit = { n -> _state.update { st -> st.copy(toolScanned = n) } }
+                val files = when (tool) {
+                    Tool.LARGE -> FileFinder.findLarge(onProgress = progress)
+                    Tool.WHATSAPP -> FileFinder.findWhatsApp(onProgress = progress)
+                }
+                Telemetry.event(
+                    "tool_scan_complete",
+                    "tool" to tool.name.lowercase(),
+                    "files" to files.size,
+                    "total_mb" to (files.sumOf { it.size } shr 20),
+                    "duration_ms" to (SystemClock.elapsedRealtime() - startedAt)
+                )
+                _state.update { it.copy(toolFiles = files, toolRunning = false) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Telemetry.error("tool_scan", e)
+                _state.update { it.copy(toolRunning = false) }
+                toast("Couldn't finish looking through your files")
+            }
+        }
+    }
+
+    fun toggleTool(file: MediaFile) = _state.update {
+        it.copy(toolSelected = if (file.path in it.toolSelected) it.toolSelected - file.path else it.toolSelected + file.path)
+    }
+
+    /** Ticks every file currently shown, or clears them when they are all ticked already. */
+    fun toggleSelectAllTool() = _state.update { s ->
+        val paths = s.toolVisible.map { it.path }
+        val allOn = paths.isNotEmpty() && paths.all { it in s.toolSelected }
+        s.copy(toolSelected = if (allOn) s.toolSelected - paths.toSet() else s.toolSelected + paths)
+    }
+
+    fun setLargeMin(bytes: Long) = _state.update { it.copy(largeMinBytes = bytes) }
+
+    fun setToolKind(kind: FileKind?) = _state.update { it.copy(toolKind = kind) }
+
+    fun setWaCategory(category: WaCategory?) = _state.update { it.copy(waCategory = category) }
 
     // ---- Similar photos ----
 
@@ -634,7 +729,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val paths = summary.files.map { it.path }
         val sizeByPath = summary.files.associate { it.path to it.size }
         val mode = s.cleanMode
-        val tabName = s.resultsTab.name.lowercase()
+        val tabName = (s.tool?.name ?: s.resultsTab.name).lowercase()
         val startedAt = SystemClock.elapsedRealtime()
         Telemetry.event(
             "clean_start",
@@ -677,6 +772,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         selected = st.selected - gone,
                         similarGroups = similar,
                         similarSelected = st.similarSelected - gone,
+                        toolFiles = st.toolFiles.filter { it.path !in gone },
+                        toolSelected = st.toolSelected - gone,
                         freeRemaining = entitlements.freeRemaining(),
                         freeTotal = entitlements.freeTotal(),
                         lifetimeFreedBytes = prefs.lifetimeFreedBytes,
@@ -770,6 +867,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             "paywall_view",
             "from" to when {
                 s.tab == Tab.SETTINGS -> "settings"
+                s.tool != null -> s.tool.name.lowercase()
                 s.resultsTab == ResultsTab.SIMILAR -> "similar"
                 else -> "results"
             },
@@ -841,7 +939,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     }
                 }
             val msg = if (keep.isEmpty()) "No selected file fits your free allowance" else null
-            if (s.resultsTab == ResultsTab.SIMILAR) {
+            if (s.tool != null) {
+                val inScope = s.toolVisible.map { it.path }.toSet()
+                s.copy(
+                    toolSelected = keep + (s.toolSelected - inScope),
+                    showPaywall = false, message = msg, messageAction = null
+                )
+            } else if (s.resultsTab == ResultsTab.SIMILAR) {
                 val inScope = s.similarGroups.flatMap { g -> g.files.map { it.path } }.toSet()
                 s.copy(
                     similarSelected = keep + (s.similarSelected - inScope),

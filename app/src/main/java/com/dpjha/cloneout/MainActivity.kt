@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.dpjha.cloneout.ads.ConsentManager
+import com.dpjha.cloneout.data.Tool
 import com.dpjha.cloneout.telemetry.Telemetry
 import com.dpjha.cloneout.ui.MainScreen
 import com.dpjha.cloneout.ui.ProActions
@@ -35,6 +36,15 @@ class MainActivity : ComponentActivity() {
 
     /** Set when we sent the user to Settings and should scan once they come back with access. */
     private var scanAfterSettings = false
+
+    /** What to open once access is granted: null = the duplicate scan. */
+    private var pendingTool: Tool? = null
+
+    private fun runPending() {
+        val t = pendingTool
+        pendingTool = null
+        if (t == null) viewModel.startScan() else viewModel.openTool(t)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -57,16 +67,17 @@ class MainActivity : ComponentActivity() {
                         if (grants.isNotEmpty()) {
                             val ok = grants.values.all { it }
                             Telemetry.event("storage_permission_result", "granted" to ok)
-                            if (ok) viewModel.startScan()
+                            if (ok) runPending()
                         }
                     }
 
                     MainScreen(
                         state = state,
                         vm = viewModel,
-                        onScan = {
+                        onScan = { tool ->
+                            pendingTool = tool
                             when {
-                                hasAllFilesAccess() -> viewModel.startScan()
+                                hasAllFilesAccess() -> runPending()
                                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                                     scanAfterSettings = true
                                     Telemetry.event("storage_permission_request")
@@ -110,7 +121,7 @@ class MainActivity : ComponentActivity() {
             scanAfterSettings = false
             val granted = hasAllFilesAccess()
             Telemetry.event("storage_permission_result", "granted" to granted)
-            if (granted) viewModel.startScan()
+            if (granted) runPending()
         }
     }
 

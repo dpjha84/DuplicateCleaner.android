@@ -114,6 +114,13 @@ Signing when you create the app in Play Console.
 - Known limits: crops, large camera shifts and photos taken seconds apart from different angles are not matched
   at Strict/Balanced; Loose catches some. Line-art icons that differ only in small details can match each other.
 
+## Large files and WhatsApp media (v1.2)
+Two list tools on the Home screen, next to the duplicate scan (`data/FileFinder.kt`, `ui/ToolScreen.kt`).
+- **Large files**: files of 50 MB or more on shared storage, biggest first (top 500). Size chips (50 MB / 100 MB / 500 MB / 1 GB) and a type filter narrow the list on screen.
+- **WhatsApp media**: everything under `Android/media/com.whatsapp/WhatsApp/Media`, the legacy `WhatsApp/Media`, and the Business equivalents. Stickers, profile photos and hidden status caches are left out. Filter by Photos, Videos, Voice notes, Audio, Documents or GIFs.
+- Nothing is pre-selected (these are not duplicates). Cleaning uses the same Trash, free allowance, rewarded-ad top-ups and Pro rules as duplicates, and only acts on files that are currently shown.
+- Events: `tool_open`, `tool_scan_complete`, and the usual `clean_*` / `paywall_view` with `tool` or `tab` = `large` / `whatsapp`.
+
 ## Free allowance and reinstalls
 The used/bonus counters are kept in app preferences, in Android Auto Backup (restored on reinstall or a new
 phone) and in a signed hidden marker file `.cloneout_state` in shared storage (survives uninstall and clear

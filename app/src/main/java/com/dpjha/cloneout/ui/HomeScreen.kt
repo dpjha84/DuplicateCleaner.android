@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.Search
@@ -49,11 +50,12 @@ import com.dpjha.cloneout.MainViewModel
 import com.dpjha.cloneout.Tab
 import com.dpjha.cloneout.UiState
 import com.dpjha.cloneout.data.FileKind
+import com.dpjha.cloneout.data.Tool
 import com.dpjha.cloneout.formatSize
 import com.dpjha.cloneout.ui.theme.BrandIndigo
 
 @Composable
-fun HomeScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit) {
+fun HomeScreen(state: UiState, vm: MainViewModel, onScan: (Tool?) -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
@@ -79,7 +81,7 @@ fun HomeScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit) {
                 )
                 Spacer(Modifier.height(20.dp))
                 Button(
-                    onClick = onScan,
+                    onClick = { onScan(null) },
                     enabled = state.scanKinds.isNotEmpty(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White,
@@ -144,6 +146,13 @@ fun HomeScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit) {
             }
         }
 
+        // More ways to free space
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SectionTitle("More ways to free space")
+            ToolCard(Icons.Rounded.Storage, "Large files", "Find the biggest videos and files", onClick = { onScan(Tool.LARGE) })
+            ToolCard(Icons.Rounded.Chat, "WhatsApp media", "Photos, videos and voice notes saved by WhatsApp", onClick = { onScan(Tool.WHATSAPP) })
+        }
+
         // Impact so far
         if (state.lifetimeFreedBytes > 0) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -195,6 +204,28 @@ fun HomeScreen(state: UiState, vm: MainViewModel, onScan: () -> Unit) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun ToolCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+    ) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconCircle(icon)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null)
         }
     }
 }

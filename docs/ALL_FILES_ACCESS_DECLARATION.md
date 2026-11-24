@@ -18,6 +18,11 @@ File management (accessing, editing and maintaining files and folders outside ap
 > to pick files or folders one at a time and cannot enumerate and hash an entire storage volume in one
 > pass; MediaStore cannot be used because it exposes only media files, not documents, downloads or
 > other file types. Without the permission the app cannot perform its core function.
+>
+> From 1.2.0 the same access also lets the user list their largest files and the media WhatsApp saved
+> (which lives under Android/media, outside MediaStore) so they can review it and move what they choose
+> to the same recoverable trash. Both are storage-maintenance views of the same files; nothing is
+> selected for the user, and nothing leaves the device.
 
 ## What the app does with the access (draft)
 > Files are read locally to compute hashes. No file content, name or hash is uploaded or shared.
