@@ -335,13 +335,13 @@ private fun ToolRow(
             FileThumb(file, imageLoader)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(file.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(file.name, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
                     "${formatSize(file.size)} · $date" +
                         if (tool == Tool.WHATSAPP && isWaSent(file.path)) " · Sent by you" else "",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (tool == Tool.LARGE) {
@@ -349,7 +349,7 @@ private fun ToolRow(
                         folderLabel(file.folder),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }

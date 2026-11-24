@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -154,7 +155,7 @@ fun PreviewDialog(
 
                 // Bottom bar: previous, main action, next
                 Row(
-                    Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                    Modifier.fillMaxWidth().padding(bottom = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -165,11 +166,11 @@ fun PreviewDialog(
                     Button(
                         onClick = onAction,
                         enabled = actionEnabled,
-                        modifier = Modifier.weight(1f).height(48.dp)
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                     ) {
                         Icon(actionIcon, null, Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(actionLabel)
+                        Text(actionLabel, maxLines = 2, textAlign = TextAlign.Center)
                     }
                     FilledIconButton(
                         onClick = { onIndex((index + 1) % files.size) },
