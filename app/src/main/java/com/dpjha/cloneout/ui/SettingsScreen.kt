@@ -182,6 +182,10 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, pro: ProActions) {
                     if (taps >= 7) { taps = 0; vm.toggleTestFree() }
                 }
             )
+            if (state.testFree) {
+                val info = remember(state.freeTotal, state.freeRemaining, state.adsLeftToday) { vm.allowanceDiagnostics() }
+                Text(info, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
         }
         Spacer(Modifier.height(8.dp))
     }

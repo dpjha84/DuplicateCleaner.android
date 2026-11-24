@@ -148,6 +148,19 @@ class Entitlements(context: Context) {
         return changed
     }
 
+    /** One line for the testing aid: where the allowance numbers come from. Read-only. */
+    fun diagnostics(): String {
+        val f = markerFile()
+        val m = readMarker()
+        val marker = when {
+            f == null || !f.isFile -> "none"
+            m == null -> "unreadable"
+            else -> "bonus ${m.bonus shr 20} MB, used ${m.used shr 20} MB"
+        }
+        return "base ${FREE_BYTES shr 20} MB + bonus ${bonusBytes shr 20} MB, used ${usedBytes shr 20} MB, " +
+            "ads $adCount (day $adDay), marker: $marker"
+    }
+
     private fun markerFile(): File? = try {
         File(Environment.getExternalStorageDirectory(), MARKER_NAME)
     } catch (e: Exception) {

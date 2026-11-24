@@ -40,6 +40,20 @@ fun waCategoryOf(path: String): WaCategory {
     }
 }
 
+private val WA_FOLDER = Regex("^(?:Android/media/com\\.whatsapp(?:\\.w4b)?/)?(WhatsApp(?: Business)?)/Media(?:/(.*))?$")
+
+/**
+ * Readable folder name for the UI. WhatsApp's long storage path becomes "WhatsApp › Video › Sent";
+ * every other folder is shown as it is ("Internal storage" for the root).
+ */
+fun friendlyFolder(folder: String): String {
+    val m = WA_FOLDER.matchEntire(folder) ?: return folder.ifEmpty { "Internal storage" }
+    val app = m.groupValues[1]
+    val rest = m.groupValues[2].split('/').filter { it.isNotEmpty() }
+        .mapIndexed { i, seg -> if (i == 0) seg.removePrefix("$app ").removePrefix("WhatsApp ") else seg }
+    return (listOf(app) + rest).joinToString(" › ")
+}
+
 /** True for files the user sent themselves (WhatsApp keeps them in a "Sent" subfolder). */
 fun isWaSent(path: String): Boolean = path.contains("/Sent/")
 

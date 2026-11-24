@@ -313,6 +313,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { ads.rewardReady.collect { r -> _state.update { it.copy(rewardReady = r) } } }
     }
 
+    /** Testing aid: where the allowance numbers come from (shown in Settings only in test mode). */
+    fun allowanceDiagnostics(): String = entitlements.diagnostics()
+
     /** Testing aid (7 taps on the version in Settings): flips between the real plan and a forced Free view. */
     fun toggleTestFree() {
         val on = !entitlements.testForceFree

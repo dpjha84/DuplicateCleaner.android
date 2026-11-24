@@ -94,7 +94,7 @@ val FileKind.tint: Color
         FileKind.OTHER -> Color(0xFF7A7F8E)
     }
 
-fun folderLabel(folder: String): String = folder.ifEmpty { "Internal storage" }
+fun folderLabel(folder: String): String = com.dpjha.cloneout.data.friendlyFolder(folder)
 
 // ---- Images ----
 

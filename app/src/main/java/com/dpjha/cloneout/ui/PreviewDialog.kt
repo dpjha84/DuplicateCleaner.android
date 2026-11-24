@@ -120,7 +120,7 @@ fun PreviewDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Close") }
                     Column(Modifier.weight(1f)) {
-                        Text(file.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(file.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(
                             "${index + 1} of ${files.size} · ${formatSize(file.size)}",
                             style = MaterialTheme.typography.labelMedium,
@@ -137,7 +137,7 @@ fun PreviewDialog(
                     folderLabel(file.folder) + " · " + DateFormat.getDateInstance().format(Date(file.dateModified)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
