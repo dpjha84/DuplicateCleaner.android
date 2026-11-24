@@ -45,6 +45,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -166,10 +170,17 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, pro: ProActions) {
                 Spacer(Modifier.width(12.dp))
                 Switch(checked = state.shareUsage, onCheckedChange = vm::setShareUsage)
             }
+            // Seven quick taps switch the testing aid on or off (shows the Free plan; never grants Pro).
+            var taps by remember { mutableStateOf(0) }
             Text(
-                "Version ${BuildConfig.VERSION_NAME} · No account needed · Files never leave your device",
+                "Version ${BuildConfig.VERSION_NAME} · No account needed · Files never leave your device" +
+                    if (state.testFree) " · TEST MODE: showing Free" else "",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (state.testFree) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.clickable {
+                    taps += 1
+                    if (taps >= 7) { taps = 0; vm.toggleTestFree() }
+                }
             )
         }
         Spacer(Modifier.height(8.dp))

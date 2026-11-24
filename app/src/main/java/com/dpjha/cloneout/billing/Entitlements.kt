@@ -41,6 +41,15 @@ class Entitlements(context: Context) {
         set(value) = proPrefs.edit().putBoolean(KEY_PRO, value).apply()
 
     /**
+     * Testing aid: show the Free plan even when Google Play says Pro is owned (7 taps on the version in
+     * Settings). It can only take Pro away on screen, never grant it. Stored with the Pro flag, so it is not
+     * backed up either.
+     */
+    var testForceFree: Boolean
+        get() = proPrefs.getBoolean(KEY_TEST_FREE, false)
+        set(value) = proPrefs.edit().putBoolean(KEY_TEST_FREE, value).apply()
+
+    /**
      * Version 1.0 kept the flag in the backed-up file. On a real update keep a paying user's Pro
      * (so it shows even before Play answers); on a fresh install or restore drop it. Either way remove
      * the old key so it is never backed up again.
@@ -208,6 +217,7 @@ class Entitlements(context: Context) {
         const val MAX_ADS_PER_DAY = 2
         private const val MARKER_VERSION = 2
         private const val KEY_PRO = "pro"
+        private const val KEY_TEST_FREE = "test_force_free"
         private const val KEY_USED = "used_bytes"
         private const val KEY_BONUS = "bonus_bytes"
         private const val KEY_AD_DAY = "ad_day"

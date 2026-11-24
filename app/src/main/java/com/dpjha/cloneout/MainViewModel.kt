@@ -128,6 +128,8 @@ data class UiState(
 
     // Monetization
     val isPro: Boolean = false,
+    /** Testing aid is on: the Free plan is shown even if Google Play says Pro is owned. */
+    val testFree: Boolean = false,
     /** Play Billing could not provide the Pro product (e.g. a sideloaded build). */
     val storeUnavailable: Boolean = false,
     val freeRemaining: Long = Entitlements.FREE_BYTES,
@@ -269,7 +271,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             cleanMode = prefs.cleanMode,
             lifetimeFreedBytes = prefs.lifetimeFreedBytes,
             lifetimeFiles = prefs.lifetimeFiles,
-            isPro = entitlements.isProCached,
+            isPro = entitlements.isProCached && !entitlements.testForceFree,
+            testFree = entitlements.testForceFree,
             freeRemaining = entitlements.freeRemaining(),
             freeTotal = entitlements.freeTotal(),
             adsLeftToday = entitlements.adsLeftToday(),
@@ -298,13 +301,25 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             billing.isPro.collect { pro ->
                 Telemetry.setPlan(pro)
-                _state.update { it.copy(isPro = pro, showPaywall = it.showPaywall && !pro) }
+                _state.update {
+                    val shown = pro && !it.testFree
+                    it.copy(isPro = shown, showPaywall = it.showPaywall && !shown)
+                }
             }
         }
         viewModelScope.launch { billing.price.collect { p -> _state.update { it.copy(proPrice = p) } } }
         viewModelScope.launch { billing.storeUnavailable.collect { u -> _state.update { it.copy(storeUnavailable = u) } } }
         viewModelScope.launch { billing.events.collect { m -> toast(m) } }
         viewModelScope.launch { ads.rewardReady.collect { r -> _state.update { it.copy(rewardReady = r) } } }
+    }
+
+    /** Testing aid (7 taps on the version in Settings): flips between the real plan and a forced Free view. */
+    fun toggleTestFree() {
+        val on = !entitlements.testForceFree
+        entitlements.testForceFree = on
+        Telemetry.event("test_mode_toggle", "on" to on)
+        _state.update { it.copy(testFree = on, isPro = billing.isPro.value && !on, showPaywall = false) }
+        toast(if (on) "Test mode on: showing the Free plan. Tap the version 7 times to turn it off." else "Test mode off.")
     }
 
     private fun toast(text: String, action: SnackAction? = null) =
