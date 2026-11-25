@@ -153,7 +153,7 @@ fun PreviewDialog(
 
                 // Bottom bar: previous, main action, next
                 Row(
-                    Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    Modifier.fillMaxWidth().padding(bottom = 80.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
